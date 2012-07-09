@@ -1,19 +1,22 @@
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 
 import edu.stanford.nlp.process.WordShapeClassifier;
 
 public class FeaturedToken{
-	public final String word;
-	public final String pos;
+	public final String splitForm;
+	public final String splitLemma;
+	public final String pposs;
 	public final String entity;
 	public final String deprel;
+	public final String wordShape;
 
 	public final boolean isPredicate;
 	private List<Integer> childrenIndices;
-	public final Integer numChildren;
 	private List<FeaturedToken> sentenceTokens;
 	public final int sentenceIndex;
 
@@ -21,46 +24,52 @@ public class FeaturedToken{
 	private final FeaturedToken prevToken;
 	private final FeaturedToken nextToken;
 	private final FeaturedToken next2Token;
-	
+
 	public static final int wordShaper = WordShapeClassifier.WORDSHAPECHRIS2;
 
-	FeaturedToken(final String word, String pos, String entity,
-			String deprel, boolean isPredicate,
+	FeaturedToken(final String splitForm, String splitLemma,
+			String pposs, String deprel, String entity, boolean isPredicate,
 			List<Integer> childrenIndices,  List<FeaturedToken> sentenceTokens){
-		
-		this.word = word;
+
+		this.splitForm = splitForm;
+		this.splitLemma = splitLemma;
 		this.isPredicate = isPredicate;
-		this.pos = pos;
+		this.pposs = pposs;
 		this.entity = entity;
 		this.deprel = deprel;
 
+		wordShape = WordShapeClassifier.wordShape(splitForm, wordShaper);
+		
 		this.sentenceTokens = sentenceTokens;
 		sentenceIndex = sentenceTokens.indexOf(this);
 
 		this.childrenIndices = childrenIndices;
-		numChildren = childrenIndices.size();
+
+		FeaturedToken emptyToken = new FeaturedToken("", "",
+				"", "", "", false,
+				new ArrayList<Integer>(), sentenceTokens);
 
 		if(sentenceIndex > 0)
 			prevToken = sentenceTokens.get(sentenceIndex - 1);
 		else
-			prevToken = null;
+			prevToken = emptyToken;
 
 		if(sentenceIndex > 1)
 			prev2Token = sentenceTokens.get(sentenceIndex - 2);
 		else
-			prev2Token = null;
+			prev2Token = emptyToken;
 
 		if(sentenceIndex < sentenceTokens.size() - 1)
 			nextToken = sentenceTokens.get(sentenceIndex + 1);
 		else
-			nextToken = null;
+			nextToken = emptyToken;
 
 		if(sentenceIndex < sentenceTokens.size() - 2)
 			next2Token = sentenceTokens.get(sentenceIndex + 2);
 		else
-			next2Token = null;
+			next2Token = emptyToken;
 	}
-	
+
 	/*
 	 * Features are used by the linear classifier to classify tokens.
 	 * Features are provided as strings in the following format:
@@ -88,18 +97,49 @@ public class FeaturedToken{
 		features.addAll(getSplitLemma());		//add split-lemma
 		features.addAll(getSplitForm());		//add split-form
 		features.addAll(getPPoss());			//add pposs
-		
-		features.add("wdshp|" +					//add word shape using Stanford's WordShapeClassifier
-				WordShapeClassifier.wordShape(word, wordShaper));
-		
-		features.add("numch|" +	numChildren);	//add number of children
-		
+
+		features.addAll(getWordShapes());		//add word shape using Stanford's WordShapeClassifier
+
+		features.add("numch|" +	childrenIndices.size());	//add number of children
+
 		features.addAll(getChildrenFeatures()); //add children features
 		features.add(getChildrenDifferences()); //add children differences
 
 		return features;
 	}
-
+	
+	/*
+	 * Provides word shapes for this, and neighboring, tokens
+	 * Format:
+	 * wdshp[u/b/t][token nums]|[space-delimited wordshapes]
+	 */
+	private Collection<String> getWordShapes(){
+		Collection<String> wordShapes = new ArrayList<String>();
+		
+		//word shape unigrams
+		wordShapes.add("wdshpu,i-1|" + prevToken.wordShape);
+		wordShapes.add("wdshpu,i|" + wordShape);
+		wordShapes.add("wdshpu,i+1|" + nextToken.wordShape);
+		
+		//word shape bigrams
+		wordShapes.add("wdshpb,i-1,i|" +
+				prevToken.wordShape + " " + wordShape);
+		wordShapes.add("wdshpb,i,i+1|" +
+				wordShape + " " + nextToken.wordShape);
+		
+		//word shape trigrams
+		wordShapes.add("wdshpt,i-2,i-1,i" + 
+				prev2Token.wordShape + " " +
+				prevToken.wordShape + " " +
+				wordShape);
+		
+		wordShapes.add("wdshpt,i,i+1,i+2" + 
+				wordShape + " " +
+				nextToken.wordShape + " " +
+				next2Token.wordShape);
+		
+		return wordShapes;
+	}
 
 	/*
 	 * Returns a list of differences between this token's number and its children's numbers in the format:
@@ -107,16 +147,18 @@ public class FeaturedToken{
 	 * 
 	 * ex: getChildrenDifferences of a token (at position 17) with children at positions 3, 14, 22, 23
 	 * chdif|-14 -3 5 6
-	 * order of children differences not guaranteed
+	 * 
+	 * order of children differences is not guaranteed
 	 * 
 	 */
 	private String getChildrenDifferences() {
 		StringBuilder s = new StringBuilder("chdif|");
 		for(Integer i : childrenIndices)
 			s.append(" " + (i - sentenceIndex));
-		
+
 		return s.toString();
 	}
+	
 
 	/*
 	 * Collection of children's features
@@ -125,7 +167,7 @@ public class FeaturedToken{
 	 * c[the child's index in sentence][string in child's feature]
 	 * 
 	 * ex: i feature of split lemma of child token "run" (number 17 in sentence)
-	 * c17splmu,i|run|O|VB
+	 * c17splmu,i|run
 	 * 
 	 * 
 	 * Child's relation (deprel) to parent is represented:
@@ -136,136 +178,91 @@ public class FeaturedToken{
 	 * 
 	 * 
 	 * Child's pposs/split-lemmas are also added, concatenated with the parent's
+	 * and separated by "||"
 	 * 
 	 */
 	private Collection<String> getChildrenFeatures(){
-		Collection<String> childFeatures = new HashSet<String>();
+		Collection<String> childFeatures = new ArrayList<String>();
 		for(Integer i : childrenIndices){
 			//add child split-lemma
 			FeaturedToken child = sentenceTokens.get(i);
 			for(String s : child.getSplitLemma())
 				childFeatures.add("c" + child.sentenceIndex + s);
-			
+
 			//add child pposs
 			for(String s : child.getPPoss())
 				childFeatures.add("c" + child.sentenceIndex + s);
-			
+
 			//add child deprel
-			childFeatures.add("c" + child.sentenceIndex + "deprel|" + child.deprel);
-			
-			//TODO add <split_lemma(this), split_lemma(child)>
-			//how do we represent concatenation of features?
-			
-			//TODO add <pposs(this), pposs(child)>
-			
+			childFeatures.add("c" + child.sentenceIndex +
+					"deprel|" + child.deprel);
+
+			//add <split_lemma(this), split_lemma(child)>
+			Iterator<String> parentIterator = getSplitLemma().iterator();
+			Iterator<String> childIterator = child.getSplitLemma().iterator();
+			while(parentIterator.hasNext() && childIterator.hasNext())
+				childFeatures.add("cp" + child.sentenceIndex + 
+						childIterator.next() + "||" +
+						parentIterator.next());
+
+			//add <pposs(this), pposs(child)>
+			parentIterator = getPPoss().iterator();
+			childIterator = child.getPPoss().iterator();
+			while(parentIterator.hasNext() && childIterator.hasNext())
+				childFeatures.add("cp" + child.sentenceIndex + 
+						childIterator.next() + "||" +
+						parentIterator.next());
+
 		}
-		
+
 		return childFeatures;
 	}
 
 	/*
 	 * Collection of pposs features in format:
-	 * ppos[u/b],relative word position(s)|word(s)|entity(s)|pos(s)
-	 * words, entities, pos's in bigrams are space-delimited
-	 * 
-	 * ex: i-1 token of "drives" in "George Bush drives"
-	 * pposu,i-1|Bush|PERSON|NNP
-	 * 
-	 * ex: i+1,i+2 tokens of "George" in "George Bush drives
-	 * pposb,i+1,i+2|Bush drives|PERSON O|NNP VBZ
+	 * ppos[u/b],relative word position(s)|pos(s)
 	 * 
 	 */
-	public Collection<String> getPPoss() {
-		Collection<String> pposs = new HashSet<String>();
-		
+	public List<String> getPPoss() {
+		List<String> pposs = new LinkedList<String>();
+
 		//pposs unigrams
-		if(sentenceIndex > 0)
-			pposs.add("pposu,i-1|"	+		//i-1
-					prevToken.word + "|" +
-					prevToken.entity + "|" +
-					prevToken.pos);
-		
-		pposs.add("pposu,i|" +				//i
-				word + "|" +
-				entity + "|" +
-				pos);
-		
-		if(sentenceIndex < sentenceTokens.size() - 1)
-			pposs.add("pposu,i+1|"	+		//i+1
-					nextToken.word + "|" +
-					nextToken.entity + "|" +
-					nextToken.pos);
+		pposs.add("pposu,i-1|"	+ prevToken.pposs);
+		pposs.add("pposu,i|" + pposs);
+		pposs.add("pposu,i+1|"	+ nextToken.pposs);
 
 		//pposs bigrams
-		if(sentenceIndex > 1)
-			pposs.add("pposb,i-2,i-1|" +	//<i-2, i-1>
-					prev2Token.word + " " + prevToken.word + "|" + 
-					prev2Token.entity + " " + prevToken.entity + "|" + 
-					prev2Token.pos + " " + prevToken.pos);
-		
-		if(sentenceIndex > 0)
-			pposs.add("pposb,i-1,i|" +		//<i-1, i>
-					prevToken.word + " " + word + "|" + 
-					prevToken.entity + " " + entity + "|" + 
-					prevToken.pos + " " + pos);
-		
-		if(sentenceIndex < sentenceTokens.size() - 1)
-			pposs.add("pposb,i,i+1|" +		//<i, i+1>
-					word + " " + nextToken.word + "|" + 
-					entity + " " + nextToken.entity + "|" + 
-					pos + " " + nextToken.pos);
-		
-		if(sentenceIndex < sentenceTokens.size() - 1)
-			pposs.add("pposb,i+1,i+2|" +	//<i, i+1>
-					nextToken.word + " " + next2Token.word + "|" + 
-					nextToken.entity + " " + next2Token.entity + "|" + 
-					nextToken.pos + " " + next2Token.pos);
-		
+		pposs.add("pposb,i-2,i-1|" +	//<i-2, i-1>
+				prev2Token.pposs + " " + prevToken.pposs);
+		pposs.add("pposb,i-1,i|" +		//<i-1, i>
+				prevToken.pposs + " " + pposs);
+		pposs.add("pposb,i,i+1|" +		//<i, i+1>
+				pposs + " " + nextToken.pposs);
+		pposs.add("pposb,i+1,i+2|" +	//<i, i+1>
+				nextToken.pposs + " " + next2Token.pposs);
+
 		return pposs;
-		
+
 	}
 
 	/*
 	 * Collection of split form features in format:
-	 * spfm,relative word position|word|entity|pos
+	 * spfm,relative word position|form
 	 * 
 	 * ex: i-1 token of "drives" in "George Bush drives"
-	 * pposu,i-1|Bush|PERSON|NNP
+	 * pposu,i-1|Bush
 	 * 
 	 */
-	public Collection<String> getSplitForm() {
-		Collection<String> splitForm = new HashSet<String>();
-		
+	public List<String> getSplitForm() {
+		List<String> splitForm = new LinkedList<String>();
+
 		//split-form unigrams
-		if(sentenceIndex > 1)
-			splitForm.add("spfm,i-2|" +		//i-2
-					prev2Token.word + "|" +
-					prev2Token.entity + "|" + 
-					prev2Token.pos);
-		
-		if(sentenceIndex > 0)
-			splitForm.add("spfm,i-1|"	+		//i-1
-					prevToken.word + "|" +
-					prevToken.entity + "|" +
-					prevToken.pos);
-		
-		splitForm.add("spfm,i|" +				//i
-				word + "|" +
-				entity + "|" +
-				pos);
-		
-		if(sentenceIndex < sentenceTokens.size() - 1)
-			splitForm.add("spfm,i+1|"	+		//i+1
-					nextToken.word + "|" +
-					nextToken.entity + "|" +
-					nextToken.pos);
-		
-		if(sentenceIndex < sentenceTokens.size() - 2)
-			splitForm.add("spfm,i+2|"	+		//i+2
-					next2Token.word + "|" +
-					next2Token.entity + "|" +
-					next2Token.pos);
-		
+		splitForm.add("spfm,i-2|" +	 prev2Token.splitForm);
+		splitForm.add("spfm,i-1|" + prevToken.splitForm);
+		splitForm.add("spfm,i|" + splitForm);
+		splitForm.add("spfm,i+1|" + nextToken.splitForm);
+		splitForm.add("spfm,i+2|" + next2Token.splitForm);
+
 		return splitForm;
 
 	}
@@ -276,47 +273,27 @@ public class FeaturedToken{
 	 * words, entities, pos's in bigrams are space-delimited
 	 * 
 	 * ex: i-1 token of "drives" in "George Bush drives"
-	 * splmu,i-1|Bush|PERSON|NNP
+	 * splmu,i-1|NNP
 	 * 
 	 * ex: i,i+1 tokens of "Bush" in "George Bush drives
-	 * splmb,i,i+1|Bush drives|PERSON O|NNP VBZ
+	 * splmb,i,i+1|NNP VBZ
 	 * 
 	 */
-	public Collection<String> getSplitLemma() {
-		Collection<String> splitLemma = new HashSet<String>();
+	public List<String> getSplitLemma() {
+		List<String> splitLemma = new LinkedList<String>();
 
 		//split-lemma unigrams
-		if(sentenceIndex > 0)
-			splitLemma.add("splmu,i-1|"	+		//i-1
-					prevToken.word + "|" +
-					prevToken.entity + "|" +
-					prevToken.pos);
-		
-		splitLemma.add("splmu,i|" +				//i
-				word + "|" +
-				entity + "|" +
-				pos);
-		
-		if(sentenceIndex < sentenceTokens.size() - 1)
-			splitLemma.add("splmu,i+1|"	+		//i+1
-					nextToken.word + "|" +
-					nextToken.entity + "|" +
-					nextToken.pos);
-		
+		splitLemma.add("splmu,i-1|"	+ prevToken.splitLemma);
+		splitLemma.add("splmu,i|" +	splitLemma);
+		splitLemma.add("splmu,i+1|"	+ nextToken.splitLemma);
+
 
 		//split-lemma bigrams
-		if(sentenceIndex > 0)
-			splitLemma.add("splmb,i-1,i|" +		//<i-1, i>
-					prevToken.word + " " + word + "|" + 
-					prevToken.entity + " " + entity + "|" + 
-					prevToken.pos + " " + pos);
-		
-		if(sentenceIndex < sentenceTokens.size() - 1)
-			splitLemma.add("splmb,i,i+1|" +		//<i, i+1>
-					word + " " + nextToken.word + "|" + 
-					entity + " " + nextToken.entity + "|" + 
-					pos + " " + nextToken.pos);
-		
+		splitLemma.add("splmb,i-1,i|" +		//<i-1, i>
+				prevToken.splitLemma + " " + splitLemma);
+		splitLemma.add("splmb,i,i+1|" +		//<i, i+1>
+				splitLemma + " " + nextToken.splitLemma);
+
 		return splitLemma;
 
 	}
