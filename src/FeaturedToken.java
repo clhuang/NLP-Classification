@@ -94,8 +94,8 @@ public class FeaturedToken{
 
 		Collection<String> features = new HashSet<String>();
 
-		features.addAll(getSplitLemma());		//add split-lemma
-		features.addAll(getSplitForm());		//add split-form
+		features.addAll(getSplitLemmas());		//add split-lemma
+		features.addAll(getSplitForms());		//add split-form
 		features.addAll(getPPoss());			//add pposs
 
 		features.addAll(getWordShapes());		//add word shape using Stanford's WordShapeClassifier
@@ -186,7 +186,7 @@ public class FeaturedToken{
 		for(Integer i : childrenIndices){
 			//add child split-lemma
 			FeaturedToken child = sentenceTokens.get(i);
-			for(String s : child.getSplitLemma())
+			for(String s : child.getSplitLemmas())
 				childFeatures.add("c" + child.sentenceIndex + s);
 
 			//add child pposs
@@ -198,8 +198,8 @@ public class FeaturedToken{
 					"deprel|" + child.deprel);
 
 			//add <split_lemma(this), split_lemma(child)>
-			Iterator<String> parentIterator = getSplitLemma().iterator();
-			Iterator<String> childIterator = child.getSplitLemma().iterator();
+			Iterator<String> parentIterator = getSplitLemmas().iterator();
+			Iterator<String> childIterator = child.getSplitLemmas().iterator();
 			while(parentIterator.hasNext() && childIterator.hasNext())
 				childFeatures.add("cp" + child.sentenceIndex + 
 						childIterator.next() + "||" +
@@ -253,17 +253,17 @@ public class FeaturedToken{
 	 * pposu,i-1|Bush
 	 * 
 	 */
-	public List<String> getSplitForm() {
-		List<String> splitForm = new LinkedList<String>();
+	public List<String> getSplitForms() {
+		List<String> splitForms = new LinkedList<String>();
 
 		//split-form unigrams
-		splitForm.add("spfm,i-2|" +	 prev2Token.splitForm);
-		splitForm.add("spfm,i-1|" + prevToken.splitForm);
-		splitForm.add("spfm,i|" + splitForm);
-		splitForm.add("spfm,i+1|" + nextToken.splitForm);
-		splitForm.add("spfm,i+2|" + next2Token.splitForm);
+		splitForms.add("spfm,i-2|" +	 prev2Token.splitForm);
+		splitForms.add("spfm,i-1|" + prevToken.splitForm);
+		splitForms.add("spfm,i|" + splitForms);
+		splitForms.add("spfm,i+1|" + nextToken.splitForm);
+		splitForms.add("spfm,i+2|" + next2Token.splitForm);
 
-		return splitForm;
+		return splitForms;
 
 	}
 
@@ -279,22 +279,22 @@ public class FeaturedToken{
 	 * splmb,i,i+1|NNP VBZ
 	 * 
 	 */
-	public List<String> getSplitLemma() {
-		List<String> splitLemma = new LinkedList<String>();
+	public List<String> getSplitLemmas() {
+		List<String> splitLemmas = new LinkedList<String>();
 
 		//split-lemma unigrams
-		splitLemma.add("splmu,i-1|"	+ prevToken.splitLemma);
-		splitLemma.add("splmu,i|" +	splitLemma);
-		splitLemma.add("splmu,i+1|"	+ nextToken.splitLemma);
+		splitLemmas.add("splmu,i-1|"	+ prevToken.splitLemma);
+		splitLemmas.add("splmu,i|" +	splitLemmas);
+		splitLemmas.add("splmu,i+1|"	+ nextToken.splitLemma);
 
 
 		//split-lemma bigrams
-		splitLemma.add("splmb,i-1,i|" +		//<i-1, i>
-				prevToken.splitLemma + " " + splitLemma);
-		splitLemma.add("splmb,i,i+1|" +		//<i, i+1>
-				splitLemma + " " + nextToken.splitLemma);
+		splitLemmas.add("splmb,i-1,i|" +		//<i-1, i>
+				prevToken.splitLemma + " " + splitLemmas);
+		splitLemmas.add("splmb,i,i+1|" +		//<i, i+1>
+				splitLemmas + " " + nextToken.splitLemma);
 
-		return splitLemma;
+		return splitLemmas;
 
 	}
 
