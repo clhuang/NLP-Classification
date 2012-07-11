@@ -1,6 +1,5 @@
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -11,14 +10,14 @@ public class FeaturedToken{
 	public final String splitForm;
 	public final String splitLemma;
 	public final String pposs;
-	public final String entity;
 	public final String deprel;
 	public final String wordShape;
 
 	public final boolean isPredicate;
-	private List<Integer> childrenIndices;
+	private List<Integer> childrenIndices = new ArrayList<Integer>();
 	private List<FeaturedToken> sentenceTokens;
 	public final int sentenceIndex;
+	public final int parentIndex;
 
 	private final FeaturedToken prev2Token;
 	private final FeaturedToken prevToken;
@@ -26,28 +25,26 @@ public class FeaturedToken{
 	private final FeaturedToken next2Token;
 
 	public static final int wordShaper = WordShapeClassifier.WORDSHAPECHRIS2;
+	
+	static FeaturedToken emptyToken = new FeaturedToken("", "",
+			"", "", false,
+			-1, -1, new ArrayList<FeaturedToken>());
 
 	FeaturedToken(final String splitForm, String splitLemma,
-			String pposs, String deprel, String entity, boolean isPredicate,
-			List<Integer> childrenIndices,  List<FeaturedToken> sentenceTokens){
+			String pposs, String deprel, boolean isPredicate,
+			int parentIndex, int thisIndex, List<FeaturedToken> sentenceTokens){
 
 		this.splitForm = splitForm;
 		this.splitLemma = splitLemma;
 		this.isPredicate = isPredicate;
 		this.pposs = pposs;
-		this.entity = entity;
 		this.deprel = deprel;
+		this.parentIndex = parentIndex;
+		sentenceIndex = thisIndex;
 
 		wordShape = WordShapeClassifier.wordShape(splitForm, wordShaper);
 		
 		this.sentenceTokens = sentenceTokens;
-		sentenceIndex = sentenceTokens.indexOf(this);
-
-		this.childrenIndices = childrenIndices;
-
-		FeaturedToken emptyToken = new FeaturedToken("", "",
-				"", "", "", false,
-				new ArrayList<Integer>(), sentenceTokens);
 
 		if(sentenceIndex > 0)
 			prevToken = sentenceTokens.get(sentenceIndex - 1);
@@ -68,6 +65,11 @@ public class FeaturedToken{
 			next2Token = sentenceTokens.get(sentenceIndex + 2);
 		else
 			next2Token = emptyToken;
+	}
+	
+	public void addChild(int childIndex){
+		if(childIndex >= 0)
+			childrenIndices.add(childIndex);
 	}
 
 	/*
@@ -92,7 +94,7 @@ public class FeaturedToken{
 	 */
 	public Collection<String> computeFeatures() {
 
-		Collection<String> features = new HashSet<String>();
+		Collection<String> features = new ArrayList<String>();
 
 		features.addAll(getSplitLemmas());		//add split-lemma
 		features.addAll(getSplitForms());		//add split-form
@@ -128,12 +130,12 @@ public class FeaturedToken{
 				wordShape + " " + nextToken.wordShape);
 		
 		//word shape trigrams
-		wordShapes.add("wdshpt,i-2,i-1,i" + 
+		wordShapes.add("wdshpt,i-2,i-1,i|" + 
 				prev2Token.wordShape + " " +
 				prevToken.wordShape + " " +
 				wordShape);
 		
-		wordShapes.add("wdshpt,i,i+1,i+2" + 
+		wordShapes.add("wdshpt,i,i+1,i+2|" + 
 				wordShape + " " +
 				nextToken.wordShape + " " +
 				next2Token.wordShape);
@@ -154,7 +156,7 @@ public class FeaturedToken{
 	private String getChildrenDifferences() {
 		StringBuilder s = new StringBuilder("chdif|");
 		for(Integer i : childrenIndices)
-			s.append(" " + (i - sentenceIndex));
+			s.append((i - sentenceIndex) + " ");
 
 		return s.toString();
 	}
@@ -187,21 +189,20 @@ public class FeaturedToken{
 			//add child split-lemma
 			FeaturedToken child = sentenceTokens.get(i);
 			for(String s : child.getSplitLemmas())
-				childFeatures.add("c" + child.sentenceIndex + s);
+				childFeatures.add("c" + s);
 
 			//add child pposs
 			for(String s : child.getPPoss())
-				childFeatures.add("c" + child.sentenceIndex + s);
+				childFeatures.add("c" + s);
 
 			//add child deprel
-			childFeatures.add("c" + child.sentenceIndex +
-					"deprel|" + child.deprel);
+			childFeatures.add("cdeprel|" + child.deprel);
 
 			//add <split_lemma(this), split_lemma(child)>
 			Iterator<String> parentIterator = getSplitLemmas().iterator();
 			Iterator<String> childIterator = child.getSplitLemmas().iterator();
 			while(parentIterator.hasNext() && childIterator.hasNext())
-				childFeatures.add("cp" + child.sentenceIndex + 
+				childFeatures.add("cp" + 
 						childIterator.next() + "||" +
 						parentIterator.next());
 
@@ -209,7 +210,7 @@ public class FeaturedToken{
 			parentIterator = getPPoss().iterator();
 			childIterator = child.getPPoss().iterator();
 			while(parentIterator.hasNext() && childIterator.hasNext())
-				childFeatures.add("cp" + child.sentenceIndex + 
+				childFeatures.add("cp" + 
 						childIterator.next() + "||" +
 						parentIterator.next());
 
@@ -224,24 +225,24 @@ public class FeaturedToken{
 	 * 
 	 */
 	public List<String> getPPoss() {
-		List<String> pposs = new LinkedList<String>();
+		List<String> ppossList = new LinkedList<String>();
 
 		//pposs unigrams
-		pposs.add("pposu,i-1|"	+ prevToken.pposs);
-		pposs.add("pposu,i|" + pposs);
-		pposs.add("pposu,i+1|"	+ nextToken.pposs);
+		ppossList.add("pposu,i-1|"	+ prevToken.pposs);
+		ppossList.add("pposu,i|" + pposs);
+		ppossList.add("pposu,i+1|"	+ nextToken.pposs);
 
 		//pposs bigrams
-		pposs.add("pposb,i-2,i-1|" +	//<i-2, i-1>
+		ppossList.add("pposb,i-2,i-1|" +	//<i-2, i-1>
 				prev2Token.pposs + " " + prevToken.pposs);
-		pposs.add("pposb,i-1,i|" +		//<i-1, i>
+		ppossList.add("pposb,i-1,i|" +		//<i-1, i>
 				prevToken.pposs + " " + pposs);
-		pposs.add("pposb,i,i+1|" +		//<i, i+1>
+		ppossList.add("pposb,i,i+1|" +		//<i, i+1>
 				pposs + " " + nextToken.pposs);
-		pposs.add("pposb,i+1,i+2|" +	//<i, i+1>
+		ppossList.add("pposb,i+1,i+2|" +	//<i, i+1>
 				nextToken.pposs + " " + next2Token.pposs);
-
-		return pposs;
+		
+		return ppossList;
 
 	}
 
@@ -259,7 +260,7 @@ public class FeaturedToken{
 		//split-form unigrams
 		splitForms.add("spfm,i-2|" +	 prev2Token.splitForm);
 		splitForms.add("spfm,i-1|" + prevToken.splitForm);
-		splitForms.add("spfm,i|" + splitForms);
+		splitForms.add("spfm,i|" + splitForm);
 		splitForms.add("spfm,i+1|" + nextToken.splitForm);
 		splitForms.add("spfm,i+2|" + next2Token.splitForm);
 
@@ -284,15 +285,15 @@ public class FeaturedToken{
 
 		//split-lemma unigrams
 		splitLemmas.add("splmu,i-1|"	+ prevToken.splitLemma);
-		splitLemmas.add("splmu,i|" +	splitLemmas);
+		splitLemmas.add("splmu,i|" +	splitLemma);
 		splitLemmas.add("splmu,i+1|"	+ nextToken.splitLemma);
 
 
 		//split-lemma bigrams
 		splitLemmas.add("splmb,i-1,i|" +		//<i-1, i>
-				prevToken.splitLemma + " " + splitLemmas);
+				prevToken.splitLemma + " " + splitLemma);
 		splitLemmas.add("splmb,i,i+1|" +		//<i, i+1>
-				splitLemmas + " " + nextToken.splitLemma);
+				splitLemma + " " + nextToken.splitLemma);
 
 		return splitLemmas;
 
