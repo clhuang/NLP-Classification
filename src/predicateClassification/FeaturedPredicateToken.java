@@ -1,51 +1,42 @@
+package predicateClassification;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 
+import util.Token;
+
 import edu.stanford.nlp.process.WordShapeClassifier;
+import edu.stanford.nlp.ling.BasicDatum;
+import edu.stanford.nlp.ling.Datum;
 
-public class FeaturedToken{
-	public final String splitForm;
-	public final String splitLemma;
-	public final String pposs;
-	public final String deprel;
-	public final String wordShape;
-
-	public final boolean isPredicate;
-	private List<Integer> childrenIndices = new ArrayList<Integer>();
-	private List<FeaturedToken> sentenceTokens;
-	public final int sentenceIndex;
-	public final int parentIndex;
-
-	private final FeaturedToken prev2Token;
-	private final FeaturedToken prevToken;
-	private final FeaturedToken nextToken;
-	private final FeaturedToken next2Token;
-
-	public static final int wordShaper = WordShapeClassifier.WORDSHAPECHRIS2;
+public class FeaturedPredicateToken extends Token{
 	
-	static FeaturedToken emptyToken = new FeaturedToken("", "",
-			"", "", false,
-			-1, -1, new ArrayList<FeaturedToken>());
+	private List<Integer> childrenIndices = new ArrayList<Integer>();
 
-	FeaturedToken(final String splitForm, String splitLemma,
-			String pposs, String deprel, boolean isPredicate,
-			int parentIndex, int thisIndex, List<FeaturedToken> sentenceTokens){
+	private final FeaturedPredicateToken prev2Token;
+	private final FeaturedPredicateToken prevToken;
+	private final FeaturedPredicateToken nextToken;
+	private final FeaturedPredicateToken next2Token;
+	
+	private final String wordShape;
 
-		this.splitForm = splitForm;
-		this.splitLemma = splitLemma;
-		this.isPredicate = isPredicate;
-		this.pposs = pposs;
-		this.deprel = deprel;
-		this.parentIndex = parentIndex;
-		sentenceIndex = thisIndex;
+	private static final int wordShaper = WordShapeClassifier.WORDSHAPECHRIS2;
+	
+	private static FeaturedPredicateToken emptyToken = new FeaturedPredicateToken("", "",	//used as a placeholder for nonexistent tokens
+			"", "", "",
+			-1, -1, new ArrayList<FeaturedPredicateToken>());
+
+	public FeaturedPredicateToken(final String splitForm, String splitLemma,
+			String pposs, String deprel, String predicateRole,
+			int parentIndex, int sentenceIndex, List<FeaturedPredicateToken> sentenceTokens){
+		
+		super(splitForm, splitLemma, pposs, deprel, predicateRole,
+				parentIndex, sentenceIndex, sentenceTokens);
 
 		wordShape = WordShapeClassifier.wordShape(splitForm, wordShaper);
 		
-		this.sentenceTokens = sentenceTokens;
-
 		if(sentenceIndex > 0)
 			prevToken = sentenceTokens.get(sentenceIndex - 1);
 		else
@@ -65,8 +56,22 @@ public class FeaturedToken{
 			next2Token = sentenceTokens.get(sentenceIndex + 2);
 		else
 			next2Token = emptyToken;
+		
 	}
 	
+	/*
+	 * If its predicate role is "_", i.e. it is not a predicate,
+	 * returns false.
+	 * Otherwise, returns true.
+	 */
+	public boolean isPredicate(){
+		return !predicateRole.equals("_");
+	}
+	
+	/*
+	 * Simply adds some index to this token's
+	 * list of its children's indices.
+	 */
 	public void addChild(int childIndex){
 		if(childIndex >= 0)
 			childrenIndices.add(childIndex);
@@ -92,8 +97,7 @@ public class FeaturedToken{
 	 * c[#] -- child
 	 * 
 	 */
-	public Collection<String> computeFeatures() {
-
+	public Collection<String> getFeatures() {
 		Collection<String> features = new ArrayList<String>();
 
 		features.addAll(getSplitLemmas());		//add split-lemma
@@ -106,8 +110,9 @@ public class FeaturedToken{
 
 		features.addAll(getChildrenFeatures()); //add children features
 		features.add(getChildrenDifferences()); //add children differences
-
+		
 		return features;
+		
 	}
 	
 	/*
@@ -150,8 +155,6 @@ public class FeaturedToken{
 	 * ex: getChildrenDifferences of a token (at position 17) with children at positions 3, 14, 22, 23
 	 * chdif|-14 -3 5 6
 	 * 
-	 * order of children differences is not guaranteed
-	 * 
 	 */
 	private String getChildrenDifferences() {
 		StringBuilder s = new StringBuilder("chdif|");
@@ -187,22 +190,25 @@ public class FeaturedToken{
 		Collection<String> childFeatures = new ArrayList<String>();
 		for(Integer i : childrenIndices){
 			//add child split-lemma
-			FeaturedToken child = sentenceTokens.get(i);
+			FeaturedPredicateToken child = (FeaturedPredicateToken) sentenceTokens.get(i);
 			for(String s : child.getSplitLemmas())
-				childFeatures.add("c" + s);
+				childFeatures.add("c" + 
+						s);
 
 			//add child pposs
 			for(String s : child.getPPoss())
-				childFeatures.add("c" + s);
+				childFeatures.add("c" + 
+						s);
 
 			//add child deprel
-			childFeatures.add("cdeprel|" + child.deprel);
+			childFeatures.add("cdeprel|" + 
+					child.deprel);
 
 			//add <split_lemma(this), split_lemma(child)>
 			Iterator<String> parentIterator = getSplitLemmas().iterator();
 			Iterator<String> childIterator = child.getSplitLemmas().iterator();
 			while(parentIterator.hasNext() && childIterator.hasNext())
-				childFeatures.add("cp" + 
+				childFeatures.add("cp" +
 						childIterator.next() + "||" +
 						parentIterator.next());
 
@@ -284,9 +290,9 @@ public class FeaturedToken{
 		List<String> splitLemmas = new LinkedList<String>();
 
 		//split-lemma unigrams
-		splitLemmas.add("splmu,i-1|"	+ prevToken.splitLemma);
-		splitLemmas.add("splmu,i|" +	splitLemma);
-		splitLemmas.add("splmu,i+1|"	+ nextToken.splitLemma);
+		splitLemmas.add("splmu,i-1|" + prevToken.splitLemma);
+		splitLemmas.add("splmu,i|" + splitLemma);
+		splitLemmas.add("splmu,i+1|" + nextToken.splitLemma);
 
 
 		//split-lemma bigrams
@@ -297,6 +303,11 @@ public class FeaturedToken{
 
 		return splitLemmas;
 
+	}
+	
+	public Datum<String, String> asDatum(){
+		return new BasicDatum<String, String>(getFeatures(), 
+				isPredicate()?"predicate":"not_predicate");
 	}
 
 }
