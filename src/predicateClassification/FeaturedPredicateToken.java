@@ -99,6 +99,7 @@ public class FeaturedPredicateToken extends Token{
 	 * 
 	 */
 	public Collection<String> getFeatures() {
+		updateAdjacentTokens();
 		Collection<String> features = new ArrayList<String>();
 
 		features.addAll(getSplitLemmas());		//add split-lemma

@@ -46,6 +46,7 @@ public class Main {
 		List<List<ArgumentClassifierToken>> sentences = ArgumentClassifier.sentencesFromCorpus("test.closed");
 		
 		@SuppressWarnings("unchecked")
+		//List<ArgumentClassifierToken> predicates = (List<ArgumentClassifierToken>) predicateClassifier.goldPredicatesInSentence(sentences.get(0));
 		List<ArgumentClassifierToken> predicates = (List<ArgumentClassifierToken>) predicateClassifier.predicatesInSentence(sentences.get(0));
 		
 		/*for (ArgumentClassifierToken predicate : predicates){
@@ -53,12 +54,15 @@ public class Main {
 				System.out.println(predicate.splitForm + " " + a.asToken().splitForm + " " + a.probability);
 		}*/
 		
-		for (ArgumentClassifierToken predicate : predicates){
+		/*for (ArgumentClassifierToken predicate : predicates){
 			for(ArgumentClassifierToken argument : ArgumentClassifier.argumentCandidates(predicate)){
 				String argClass = argumentClassifier.argClass(argument, predicate);
 				if (!argClass.equals("NIL"))
 					System.out.println(predicate.splitForm + " " + argument.splitForm + " " + argClass);
 			}
+		}*/
+		for (ArgumentClassifierToken predicate : predicates){
+			System.out.println(predicate.splitForm);
 		}
 		
 		//predicateClassifierTest();
