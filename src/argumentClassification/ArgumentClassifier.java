@@ -3,13 +3,16 @@ package argumentClassification;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Deque;
 import java.util.List;
+import java.util.Map;
+
 import util.CorpusUtils;
-import util.Token;
 import edu.stanford.nlp.classify.Dataset;
 import edu.stanford.nlp.classify.LinearClassifier;
 import edu.stanford.nlp.ling.BasicDatum;
+import edu.stanford.nlp.stats.Counter;
 
 public class ArgumentClassifier {
 
@@ -19,10 +22,10 @@ public class ArgumentClassifier {
 		this.linearClassifier = linearClassifier;
 	}
 
-	public Collection<String> getFeatures(ArgumentClassifierToken predicate,
+	public static Collection<String> getFeatures(ArgumentClassifierToken predicate,
 			ArgumentClassifierToken argument){
 		
-		if (argument.getSentenceTokens() != predicate.getSentenceTokens())
+		if (!argument.getSentenceTokens().equals(predicate.getSentenceTokens()))
 			return null;
 		
 		Collection<String> features = new ArrayList<String>();
@@ -38,13 +41,46 @@ public class ArgumentClassifier {
 		features.add("predppos|" + predicate.pposs);
 		
 		ArgumentClassifierToken pmod = argument.getPMOD();
-		if(pmod != null){
+		if (pmod != null){
 			features.add("pmodsplm|" + pmod.splitLemma);
 			features.add("pmodspfm|" + pmod.splitForm);
 			features.add("pmodppos|" + pmod.pposs);
 		}
 		
-		//TODO: 2
+		/*
+		 * Feature 2: pposs/deprel for predicate children, children of predicate ancestor across VC/IM dependencies
+		 */
+		StringBuilder deprelFeature = new StringBuilder("predcdeprel|");
+		StringBuilder ppossFeature = new StringBuilder("predcpposs|");
+		for (ArgumentClassifierToken child : predicate.getChildren()){
+			deprelFeature.append(child.deprel + " ");
+			ppossFeature.append(child.pposs + " ");
+		}
+		features.add(deprelFeature.toString());
+		features.add(ppossFeature.toString());
+		
+		deprelFeature = new StringBuilder("vcimdeprel|");
+		ppossFeature = new StringBuilder("vcimpposs|");
+		ArgumentClassifierToken vcimAncestor = predicate;
+		while(vcimAncestor.deprel.equals("VC") || vcimAncestor.deprel.equals("IM"))
+			vcimAncestor = (ArgumentClassifierToken) vcimAncestor.getParent();
+		
+		for (ArgumentClassifierToken ancestorChild : vcimAncestor.getChildren()){
+			deprelFeature.append(" " + ancestorChild.deprel);
+			ppossFeature.append(" " + ancestorChild.pposs);
+			if (ancestorChild.equals(argument)){
+				deprelFeature.append("a");
+				ppossFeature.append("a");
+			}
+			else if (ancestorChild.equals(predicate)){
+				deprelFeature.append("p");
+				ppossFeature.append("p");
+			}
+		}
+		features.add(deprelFeature.toString());
+		features.add(ppossFeature.toString());
+		
+		
 		
 		/*
 		 * Feature 3: dependency path
@@ -56,10 +92,10 @@ public class ArgumentClassifier {
 		 * from the argument to the ancestor, the dependencies go upwards;
 		 * from the predicate to the ancestor, the dependencies go downwards
 		 */
-		Token ancestor = SentenceUtils.getCommonAncestor(argument, predicate);
+		ArgumentClassifierToken ancestor = SentenceUtils.getCommonAncestor(argument, predicate);
 		
-		Deque<Token> argPath = SentenceUtils.ancestorPath(argument, ancestor);
-		Deque<Token> predPath = SentenceUtils.ancestorPath(predicate, ancestor);
+		Deque<ArgumentClassifierToken> argPath = SentenceUtils.ancestorPath(argument, ancestor);
+		Deque<ArgumentClassifierToken> predPath = SentenceUtils.ancestorPath(predicate, ancestor);
 
 		argPath.removeLast(); //ancestor is last thing in both pathA and pathB, don't need it's deprel
 		predPath.removeLast();
@@ -96,18 +132,16 @@ public class ArgumentClassifier {
 		return features;
 	}
 	
-	private List<ArgumentClassifierToken> argumentCandidates(ArgumentClassifierToken predicate){
+	public static List<ArgumentClassifierToken> argumentCandidates(ArgumentClassifierToken predicate){
 		List<ArgumentClassifierToken> candidates = new ArrayList<ArgumentClassifierToken>();
 		
-		for(ArgumentClassifierToken t : predicate.getSentenceTokens()){
-			if (t.equals(predicate))
-				continue;
+		for (ArgumentClassifierToken t : predicate.getSentenceTokens()){
 			
-			ArgumentClassifierToken ancestor = (ArgumentClassifierToken) SentenceUtils.getCommonAncestor(t, predicate);
+			ArgumentClassifierToken ancestor = SentenceUtils.getCommonAncestor(t, predicate);
 			int argumentAncestorPathLength = SentenceUtils.ancestorPathLength(t, ancestor);
 			int predicateAncestorPathLength = SentenceUtils.ancestorPathLength(predicate, ancestor);
 			
-			if(argumentAncestorPathLength < 3 &&
+			if (argumentAncestorPathLength < 3 &&
 					predicateAncestorPathLength < 5 &&
 					argumentAncestorPathLength + predicateAncestorPathLength < 6)
 				candidates.add(t);
@@ -116,13 +150,14 @@ public class ArgumentClassifier {
 		
 		return candidates;
 	}
-
-	public Dataset<String, String> dataSetFromCorpus(String corpusLoc) throws IOException{
-		List<List<String[]>> sentences = CorpusUtils.sentencesFromCorpus(corpusLoc);
-		Dataset<String, String> dataset = new Dataset<String, String>();
-		List<ArgumentClassifierToken> sentenceTokens = new ArrayList<ArgumentClassifierToken>();
-
-		for(List<String[]> sentence : sentences){
+	
+	public static List<List<ArgumentClassifierToken>> sentencesFromCorpus(String corpusLoc) throws IOException{
+		List<List<String[]>> sentenceData = CorpusUtils.sentencesFromCorpus(corpusLoc);
+		List<List<ArgumentClassifierToken>> sentences = new ArrayList<List<ArgumentClassifierToken>>();
+		List<ArgumentClassifierToken> sentenceTokens;
+		
+		for (List<String[]> sentence : sentenceData){
+			sentenceTokens = new ArrayList<ArgumentClassifierToken>();
 			List<ArgumentClassifierToken> predicates = new ArrayList<ArgumentClassifierToken>();
 			
 			for (String[] tokenData : sentence){
@@ -140,34 +175,61 @@ public class ArgumentClassifier {
 						sentenceTokens);		//list of sentence tokens
 						
 				sentenceTokens.add(token);
-				if (token.isPredicate())
+				if(token.isPredicate())
 					predicates.add(token);
 				
-				for (int i = CorpusUtils.ARGS_START_COLUMN; i < tokenData.length; i++)	//link predicate arg to predicate
-					if (tokenData[i] != "_"){
-						int predicateNum = i - CorpusUtils.ARGS_START_COLUMN;
-						token.addPredicate(predicates.get(predicateNum), tokenData[i]);
-					}
 			}
 
+			for (int i = 0; i < sentence.size(); i++){
+				String[] tokenData = sentence.get(i);
+				ArgumentClassifierToken token = sentenceTokens.get(i);
+				for (int j = CorpusUtils.ARGS_START_COLUMN; j < tokenData.length; j++)	//link predicate arg to predicate
+					if (!tokenData[j].equals("_")){
+						int predicateNum = j - CorpusUtils.ARGS_START_COLUMN;
+						token.addPredicate(predicates.get(predicateNum).sentenceIndex, tokenData[j]);
+					}
+			}
+			
+			
 			for (ArgumentClassifierToken t : sentenceTokens){ //link parents to children
-				if(t.parentIndex >= 0){
-					ArgumentClassifierToken parent = sentenceTokens.get(t.parentIndex);
-					parent.addChild(t.sentenceIndex);
+				if (t.parentIndex >= 0){
+					sentenceTokens.get(t.parentIndex).addChild(t.sentenceIndex);
 				}
+			}
+			
+			sentences.add(sentenceTokens);
+
+		}
+		
+		return sentences;
+		
+	}
+
+	public static Dataset<String, String> dataSetFromCorpus(String corpusLoc) throws IOException{
+		
+		Dataset<String, String> dataset = new Dataset<String, String>();
+		List<List<ArgumentClassifierToken>> sentences = sentencesFromCorpus(corpusLoc);
+		
+		while (!sentences.isEmpty()){
+			
+			List<ArgumentClassifierToken> sentence = sentences.remove(0);
+			List<ArgumentClassifierToken> predicates = new ArrayList<ArgumentClassifierToken>();
+			for (ArgumentClassifierToken token : sentence){
+				if (token.isPredicate())
+					predicates.add(token);
 			}
 			
 			for (ArgumentClassifierToken predicate : predicates){
 				for (ArgumentClassifierToken possibleArg : argumentCandidates(predicate))
 				{
-					Collection<String> features = getFeatures(predicate, possibleArg);
-					String label = possibleArg.predicateLabel(predicate);
-					dataset.add(new BasicDatum<String, String>(features, label));
+					dataset.add(new BasicDatum<String, String>(
+							getFeatures(predicate, possibleArg),
+							possibleArg.predicateLabel(predicate)));
 				}
 			}
-
+			
 		}
-
+		
 		return dataset;
 	}
 	
@@ -175,8 +237,38 @@ public class ArgumentClassifier {
 		return linearClassifier.classOf(new BasicDatum<String, String>(getFeatures(predicate, argument)));
 	}
 	
-	public boolean isArgument(ArgumentClassifierToken argument, ArgumentClassifierToken predicate){
-		return linearClassifier.classOf(new BasicDatum<String, String>(getFeatures(predicate, argument))).equals("NIL");
+	public Double probabilityIsArgument(ArgumentClassifierToken argument, ArgumentClassifierToken predicate){
+		return 1 - argClassProbabilities(argument, predicate).getCount("NIL");
 	}
+	
+	public Counter<String> argClassProbabilities(ArgumentClassifierToken argument, ArgumentClassifierToken predicate){
+		return linearClassifier.probabilityOf(new BasicDatum<String, String>(getFeatures(predicate, argument)));
+	}
+	
+	/*public List<ArgumentWithProbability> sortedPossibleArgs(ArgumentClassifierToken predicate){
+		List<ArgumentWithProbability> args = new ArrayList<ArgumentWithProbability>();
+		for (ArgumentClassifierToken t : argumentCandidates(predicate)){
+			args.add(new ArgumentWithProbability(t, probabilityIsArgument(t, predicate)));
+		}
+		Collections.sort(args);
+		return args;
+	}
+	
+	public class ArgumentWithProbability implements Comparable<ArgumentWithProbability>{
+		private ArgumentClassifierToken argument;
+		public final Double probability;
+		private ArgumentWithProbability(ArgumentClassifierToken possibleArgument, Double probability){
+			this.argument = possibleArgument;
+			this.probability = probability;
+		}
+		
+		public int compareTo(ArgumentWithProbability o) {
+			return o.probability.compareTo(this.probability);
+		}
+		
+		public ArgumentClassifierToken asToken(){
+			return argument;
+		}
+	}*/
 
 }

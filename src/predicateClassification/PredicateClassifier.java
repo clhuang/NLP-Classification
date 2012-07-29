@@ -22,6 +22,22 @@ public class PredicateClassifier {
 		return linearClassifier.classOf(d).equals("predicate");
 	}
 	
+	public List<? extends FeaturedPredicateToken> predicatesInSentence(List<? extends FeaturedPredicateToken> sentenceTokens){
+		List<FeaturedPredicateToken> predicates = new ArrayList<FeaturedPredicateToken>();
+		for (FeaturedPredicateToken t : sentenceTokens)
+			if (isPredicate(t.asDatum()))
+				predicates.add(t);
+		return predicates;
+	}
+	
+	public List<? extends FeaturedPredicateToken> goldPredicatesInSentence(List<? extends FeaturedPredicateToken> sentenceTokens){
+		List<FeaturedPredicateToken> predicates = new ArrayList<FeaturedPredicateToken>();
+		for (FeaturedPredicateToken t : sentenceTokens)
+			if (t.isPredicate())
+				predicates.add(t);
+		return predicates;
+	}
+	
 	public static Dataset<String, String> dataSetFromCorpus(String corpusLoc)
 			throws NumberFormatException, IOException{
 
@@ -29,9 +45,10 @@ public class PredicateClassifier {
 		Dataset<String, String> dataset = new Dataset<String, String>();
 		List<FeaturedPredicateToken> sentenceTokens = new ArrayList<FeaturedPredicateToken>();
 
-		for(List<String[]> sentence : sentences){
-			 
-			for(String[] tokenData : sentence){
+		System.out.println("Generating dataset");
+		while(!sentences.isEmpty()){
+			List<String[]> sentence = sentences.remove(0);
+			for (String[] tokenData : sentence){
 				sentenceTokens.add(new FeaturedPredicateToken(	//make new token, add to list
 						tokenData[CorpusUtils.SPLIT_FORM_COLUMN],	//split_form
 						tokenData[CorpusUtils.SPLIT_LEMMA_COLUMN],	//split_lemma
@@ -46,14 +63,15 @@ public class PredicateClassifier {
 						sentenceTokens));		//list of sentence tokens	
 			}
 			
-			for(FeaturedPredicateToken t : sentenceTokens){ //link parents to children
-				if(t.parentIndex >= 0){
+			for (FeaturedPredicateToken t : sentenceTokens){ 
+				if (t.parentIndex >= 0){	//link parents to children
 					FeaturedPredicateToken parent = sentenceTokens.get(t.parentIndex);
 					parent.addChild(t.sentenceIndex);
 				}
+				t.updateAdjacentTokens();
 			}
 
-			for(FeaturedPredicateToken t : sentenceTokens){	//add tokens to dataset
+			for (FeaturedPredicateToken t : sentenceTokens){	//add tokens to dataset
 				dataset.add(t.asDatum());
 			}
 			

@@ -5,11 +5,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import util.Token;
+import predicateClassification.FeaturedPredicateToken;
 
-public class ArgumentClassifierToken extends Token{
-	private List<Integer> childrenIndices;
-	private List<ArgumentClassifierToken> arguments = new ArrayList<ArgumentClassifierToken>();
+public class ArgumentClassifierToken extends FeaturedPredicateToken{
+	private List<Integer> childrenIndices = new ArrayList<Integer>();
 	
 	private Map<Integer, String> labels = new HashMap<Integer, String>();
 
@@ -21,30 +20,23 @@ public class ArgumentClassifierToken extends Token{
 	}
 	
 	public void addChild(int childIndex) {
-		if(childIndex >= 0)
+		if (childIndex >= 0)
 			childrenIndices.add(childIndex);
 	}
 	
 	public boolean isPredicate() {
-		return predicateRole.equals("_");
-	}
-	
-	public void addArgument(ArgumentClassifierToken t, int argNum){
-		if (isPredicate())
-			arguments.add(argNum, t);
+		return !(predicateRole.equals("_"));
 	}
 
 	public ArgumentClassifierToken getPMOD() {
-		for(Integer i : childrenIndices)
-			if(sentenceTokens.get(i).deprel.startsWith("PMOD"))
+		for (Integer i : childrenIndices)
+			if (sentenceTokens.get(i).deprel.startsWith("PMOD"))
 				return (ArgumentClassifierToken) sentenceTokens.get(i);
 		return null;
 	}
 	
-	public void addPredicate(ArgumentClassifierToken predicate, String label){
-		if (predicate.getSentenceTokens() != getSentenceTokens())
-			return;
-		labels.put(predicate.sentenceIndex, label);
+	public void addPredicate(int predicateIndex, String label){
+		labels.put(predicateIndex, label);
 	}
 	
 	public String predicateLabel(ArgumentClassifierToken predicate){
@@ -57,5 +49,13 @@ public class ArgumentClassifierToken extends Token{
 	@SuppressWarnings("unchecked")
 	public List<ArgumentClassifierToken> getSentenceTokens(){
 		return (List<ArgumentClassifierToken>) super.getSentenceTokens();
+	}
+	
+	public List<ArgumentClassifierToken> getChildren(){
+		List<ArgumentClassifierToken> children = new ArrayList<ArgumentClassifierToken>();
+		for (Integer index : childrenIndices)
+			children.add((ArgumentClassifierToken) sentenceTokens.get(index));
+		
+		return children;
 	}
 }

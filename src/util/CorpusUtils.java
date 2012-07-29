@@ -29,7 +29,7 @@ public class CorpusUtils {
 		ArrayList<String[]> sentenceTokens = new ArrayList<String[]>();
 		
 		while ((strLine = br.readLine()) != null) {
-			if(strLine.equals("")){	//sentence is over, enter sentence data into dataset
+			if (strLine.equals("")){	//sentence is over, enter sentence data into dataset
 				sentences.add((List<String[]>) sentenceTokens.clone());
 				sentenceTokens.clear();
 			}

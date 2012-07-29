@@ -15,10 +15,10 @@ public class FeaturedPredicateToken extends Token{
 	
 	private List<Integer> childrenIndices = new ArrayList<Integer>();
 
-	private final FeaturedPredicateToken prev2Token;
-	private final FeaturedPredicateToken prevToken;
-	private final FeaturedPredicateToken nextToken;
-	private final FeaturedPredicateToken next2Token;
+	private FeaturedPredicateToken prev2Token;
+	private FeaturedPredicateToken prevToken;
+	private FeaturedPredicateToken nextToken;
+	private FeaturedPredicateToken next2Token;
 	
 	private final String wordShape;
 
@@ -30,33 +30,34 @@ public class FeaturedPredicateToken extends Token{
 
 	public FeaturedPredicateToken(final String splitForm, String splitLemma,
 			String pposs, String deprel, String predicateRole,
-			int parentIndex, int sentenceIndex, List<FeaturedPredicateToken> sentenceTokens){
+			int parentIndex, int sentenceIndex, List<? extends FeaturedPredicateToken> sentenceTokens){
 		
 		super(splitForm, splitLemma, pposs, deprel, predicateRole,
 				parentIndex, sentenceIndex, sentenceTokens);
 
-		wordShape = WordShapeClassifier.wordShape(splitForm, wordShaper);
-		
-		if(sentenceIndex > 0)
-			prevToken = sentenceTokens.get(sentenceIndex - 1);
+		wordShape = WordShapeClassifier.wordShape(splitForm, wordShaper);	
+	}
+	
+	public void updateAdjacentTokens(){
+		if (sentenceIndex > 0)
+			prevToken = (FeaturedPredicateToken) sentenceTokens.get(sentenceIndex - 1);
 		else
 			prevToken = emptyToken;
 
-		if(sentenceIndex > 1)
-			prev2Token = sentenceTokens.get(sentenceIndex - 2);
+		if (sentenceIndex > 1)
+			prev2Token = (FeaturedPredicateToken) sentenceTokens.get(sentenceIndex - 2);
 		else
 			prev2Token = emptyToken;
 
-		if(sentenceIndex < sentenceTokens.size() - 1)
-			nextToken = sentenceTokens.get(sentenceIndex + 1);
+		if (sentenceIndex < sentenceTokens.size() - 1)
+			nextToken = (FeaturedPredicateToken) sentenceTokens.get(sentenceIndex + 1);
 		else
 			nextToken = emptyToken;
 
-		if(sentenceIndex < sentenceTokens.size() - 2)
-			next2Token = sentenceTokens.get(sentenceIndex + 2);
+		if (sentenceIndex < sentenceTokens.size() - 2)
+			next2Token = (FeaturedPredicateToken) sentenceTokens.get(sentenceIndex + 2);
 		else
 			next2Token = emptyToken;
-		
 	}
 	
 	/*
@@ -73,7 +74,7 @@ public class FeaturedPredicateToken extends Token{
 	 * list of its children's indices.
 	 */
 	public void addChild(int childIndex){
-		if(childIndex >= 0)
+		if (childIndex >= 0)
 			childrenIndices.add(childIndex);
 	}
 
@@ -158,7 +159,7 @@ public class FeaturedPredicateToken extends Token{
 	 */
 	private String getChildrenDifferences() {
 		StringBuilder s = new StringBuilder("chdif|");
-		for(Integer i : childrenIndices)
+		for (Integer i : childrenIndices)
 			s.append((i - sentenceIndex) + " ");
 
 		return s.toString();
@@ -188,37 +189,57 @@ public class FeaturedPredicateToken extends Token{
 	 */
 	private Collection<String> getChildrenFeatures(){
 		Collection<String> childFeatures = new ArrayList<String>();
-		for(Integer i : childrenIndices){
+		for (Integer i : childrenIndices){
 			//add child split-lemma
 			FeaturedPredicateToken child = (FeaturedPredicateToken) sentenceTokens.get(i);
-			for(String s : child.getSplitLemmas())
+			for (String s : child.getSplitLemmas()){
 				childFeatures.add("c" + 
 						s);
+				childFeatures.add("c" + (sentenceIndex - child.sentenceIndex) +
+						s);
+			}
 
 			//add child pposs
-			for(String s : child.getPPoss())
+			for (String s : child.getPPoss()){
 				childFeatures.add("c" + 
 						s);
+				childFeatures.add("c" + (sentenceIndex - child.sentenceIndex) +
+						s);
+			}
 
 			//add child deprel
 			childFeatures.add("cdeprel|" + 
+					child.deprel);
+			childFeatures.add("cdeprel|" + (sentenceIndex - child.sentenceIndex) +
 					child.deprel);
 
 			//add <split_lemma(this), split_lemma(child)>
 			Iterator<String> parentIterator = getSplitLemmas().iterator();
 			Iterator<String> childIterator = child.getSplitLemmas().iterator();
-			while(parentIterator.hasNext() && childIterator.hasNext())
-				childFeatures.add("cp" +
-						childIterator.next() + "||" +
-						parentIterator.next());
+			while (parentIterator.hasNext() && childIterator.hasNext()){
+				String childString = childIterator.next();
+				String parentString = parentIterator.next();
+				childFeatures.add("cp" + 
+						childString + "||" +
+						parentString);
+				childFeatures.add("cp" + (sentenceIndex - child.sentenceIndex) +
+						childString + "||" +
+						parentString);
+			}
 
 			//add <pposs(this), pposs(child)>
 			parentIterator = getPPoss().iterator();
 			childIterator = child.getPPoss().iterator();
-			while(parentIterator.hasNext() && childIterator.hasNext())
+			while (parentIterator.hasNext() && childIterator.hasNext()){
+				String childString = childIterator.next();
+				String parentString = parentIterator.next();
 				childFeatures.add("cp" + 
-						childIterator.next() + "||" +
-						parentIterator.next());
+						childString + "||" +
+						parentString);
+				childFeatures.add("cp" + (sentenceIndex - child.sentenceIndex) +
+						childString + "||" +
+						parentString);
+			}
 
 		}
 
