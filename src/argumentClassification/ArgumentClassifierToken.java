@@ -1,6 +1,7 @@
 package argumentClassification;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -58,4 +59,27 @@ public class ArgumentClassifierToken extends FeaturedPredicateToken{
 		
 		return children;
 	}
+	
+	public Collection<Integer> getDescendantIndices(){
+		Collection<Integer> descendantIndices = new ArrayList<Integer>();
+		for (Integer i : childrenIndices){
+			ArgumentClassifierToken child = (ArgumentClassifierToken) sentenceTokens.get(i);
+			descendantIndices.add(i);
+			descendantIndices.addAll(child.getDescendantIndices());
+		}
+		return descendantIndices;
+	}
+	
+	public Collection<Integer> getAncestorIndices(){
+		Collection<Integer> ancestorIndices = new ArrayList<Integer>();
+		ArgumentClassifierToken ancestor = this;
+		while (ancestor.parentIndex >= 0){
+			ancestorIndices.add(ancestor.parentIndex);
+			ancestor = (ArgumentClassifierToken) ancestor.getParent();
+		}
+		return ancestorIndices;
+	}
+	
+	
+	
 }

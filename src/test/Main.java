@@ -5,13 +5,20 @@ import edu.stanford.nlp.classify.LinearClassifier;
 import edu.stanford.nlp.classify.LinearClassifierFactory;
 import edu.stanford.nlp.ling.BasicDatum;
 import edu.stanford.nlp.ling.Datum;
+import edu.stanford.nlp.stats.ClassicCounter;
+import edu.stanford.nlp.stats.Counter;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import argumentClassification.ArgumentClassifier;
+import argumentClassification.ArgumentClassifierA;
+import argumentClassification.ArgumentClassifierB;
 //import argumentClassification.ArgumentClassifier.ArgumentWithProbability;
 import argumentClassification.ArgumentClassifierToken;
 
@@ -26,33 +33,106 @@ public class Main {
 	 */
 	
 	public static void main(String[] args) throws IOException {
-		ArgumentClassifier argumentClassifier;
+		ArgumentClassifierA argumentClassifierA;
 		LinearClassifier<String, String> l;
-		LinearClassifier<String, String> pl;
-		Dataset<String, String> testSentence = ArgumentClassifier.dataSetFromCorpus("test.closed");
+		//LinearClassifier<String, String> pl;
 		
 		/*Dataset<String, String> trainSet = ArgumentClassifier.dataSetFromCorpus("train.closed");
 		trainSet.applyFeatureCountThreshold(3);
 		l = new LinearClassifierFactory<String, String>().
 				trainClassifier(trainSet);
-		LinearClassifier.writeClassifier(l, "argumentclassifierA.gz");
-		argumentClassifier = new ArgumentClassifier(l);*/
+		LinearClassifier.writeClassifier(l, "argumentclassifierB.gz");*/
 		
 		l  = LinearClassifier.readClassifier("argumentclassifierA.gz");
-		pl = LinearClassifier.readClassifier("predicateclassifierA.gz");
-		argumentClassifier = new ArgumentClassifier(l);
-		PredicateClassifier predicateClassifier = new PredicateClassifier(pl);
+		//pl = LinearClassifier.readClassifier("predicateclassifierA.gz");
+		argumentClassifierA = new ArgumentClassifierA(l);
+		//PredicateClassifier predicateClassifier = new PredicateClassifier(pl);
 		
-		List<List<ArgumentClassifierToken>> sentences = ArgumentClassifier.sentencesFromCorpus("test.closed");
+		LinearClassifier<String, String> l2 = LinearClassifier.readClassifier("argumentclassifierB.gz");
+		ArgumentClassifierB argumentClassifierB = new ArgumentClassifierB(l2);
 		
-		@SuppressWarnings("unchecked")
-		//List<ArgumentClassifierToken> predicates = (List<ArgumentClassifierToken>) predicateClassifier.goldPredicatesInSentence(sentences.get(0));
-		List<ArgumentClassifierToken> predicates = (List<ArgumentClassifierToken>) predicateClassifier.predicatesInSentence(sentences.get(0));
+		List<List<ArgumentClassifierToken>> sentences = ArgumentClassifierB.sentencesFromCorpus("devel.closed");
 		
-		/*for (ArgumentClassifierToken predicate : predicates){
-			for (ArgumentWithProbability a : argumentClassifier.sortedPossibleArgs(predicate))
-				System.out.println(predicate.splitForm + " " + a.asToken().splitForm + " " + a.probability);
+		System.out.println();
+		
+		Counter<String> aCorrect = new ClassicCounter<String>();
+		Counter<String> bCorrect = new ClassicCounter<String>();
+		Counter<String> aPredicted = new ClassicCounter<String>();
+		Counter<String> bPredicted = new ClassicCounter<String>();
+		Counter<String> goldLabels = new ClassicCounter<String>();
+		
+		for (List<ArgumentClassifierToken> sentence : sentences){
+		//List<ArgumentClassifierToken> sentence = sentences.get(1);{
+			@SuppressWarnings("unchecked")
+			List<ArgumentClassifierToken> predicates = (List<ArgumentClassifierToken>) PredicateClassifier.goldPredicatesInSentence(sentence);
+			for (ArgumentClassifierToken predicate : predicates){
+				
+				Map<ArgumentClassifierToken, String> aArgumentLabels = argumentClassifierA.argumentsOf(predicate);
+				Map<ArgumentClassifierToken, String> bArgumentLabels = argumentClassifierB.argumentsOf(predicate);
+				Map<ArgumentClassifierToken, String> goldArgumentLabels = ArgumentClassifier.goldArgumentsOf(predicate);
+				
+				for (ArgumentClassifierToken argument : ArgumentClassifier.argumentCandidates(predicate)){
+					String aPredictedLabel = aArgumentLabels.get(argument);
+					String bPredictedLabel = bArgumentLabels.get(argument);
+					String goldLabel = goldArgumentLabels.get(argument);
+					
+					goldLabels.incrementCount(goldLabel);
+					aPredicted.incrementCount(aPredictedLabel);
+					bPredicted.incrementCount(bPredictedLabel);
+					if (aPredictedLabel.equals(goldLabel))
+						aCorrect.incrementCount(goldLabel);
+					if (bPredictedLabel.equals(goldLabel))
+						bCorrect.incrementCount(goldLabel);
+					
+					/*if(aPredicted.equals(goldLabel) && !bPredicted.equals(goldLabel)){
+						System.err.println(predicate.splitForm + ' ' + argument.splitForm + ' ' + aPredicted + ' ' + bPredicted + ' ' + goldLabel);
+						System.err.flush();
+					}
+					else{
+						System.out.println(predicate.splitForm + ' ' + argument.splitForm + ' ' + aPredicted + ' ' + bPredicted + ' ' + goldLabel);
+						System.out.flush();
+					}*/
+				}
+			}
+		}
+		
+		List<String> argClasses = new ArrayList<String>();
+		argClasses.addAll(goldLabels.keySet());
+		Collections.sort(argClasses);
+		
+		for(String label : argClasses){
+			System.out.println(label + ' ' +
+					(int) aCorrect.getCount(label) + ' ' +
+					(int) bCorrect.getCount(label) + ' ' +
+					(int) aPredicted.getCount(label) + ' ' +
+					(int) bPredicted.getCount(label) + ' ' +
+					(int) goldLabels.getCount(label));
+		}
+		
+		/*for (String argClass : argClasses){
+			int[] stat = stats.get(argClass);
+			double precision = ((double) stat[2]) / ((double) stat[0]);
+			double recall = ((double) stat[2]) / ((double) stat[1]);
+			double f1 = 2 / ((1 / precision) + (1 / recall));
+			
+			if (Double.isNaN(precision))
+				precision = 0;
+			if (Double.isNaN(recall))
+				recall = 0;
+			if (Double.isNaN(f1))
+				f1 = 0;
+			
+			System.out.format("%s %d %d %d %.3f %.3f %.3f%n",
+					argClass,
+					stat[0],
+					stat[1],
+					stat[2],
+					precision,
+					recall,
+					f1);
 		}*/
+		
+		//List<ArgumentClassifierToken> predicates = (List<ArgumentClassifierToken>) predicateClassifier.predicatesInSentence(sentences.get(0));
 		
 		/*for (ArgumentClassifierToken predicate : predicates){
 			for(ArgumentClassifierToken argument : ArgumentClassifier.argumentCandidates(predicate)){
@@ -61,9 +141,6 @@ public class Main {
 					System.out.println(predicate.splitForm + " " + argument.splitForm + " " + argClass);
 			}
 		}*/
-		for (ArgumentClassifierToken predicate : predicates){
-			System.out.println(predicate.splitForm);
-		}
 		
 		//predicateClassifierTest();
 		

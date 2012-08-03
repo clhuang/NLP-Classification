@@ -30,7 +30,7 @@ public class PredicateClassifier {
 		return predicates;
 	}
 	
-	public List<? extends FeaturedPredicateToken> goldPredicatesInSentence(List<? extends FeaturedPredicateToken> sentenceTokens){
+	public static List<? extends FeaturedPredicateToken> goldPredicatesInSentence(List<? extends FeaturedPredicateToken> sentenceTokens){
 		List<FeaturedPredicateToken> predicates = new ArrayList<FeaturedPredicateToken>();
 		for (FeaturedPredicateToken t : sentenceTokens)
 			if (t.isPredicate())
