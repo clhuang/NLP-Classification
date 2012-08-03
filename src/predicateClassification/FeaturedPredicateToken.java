@@ -57,7 +57,7 @@ public class FeaturedPredicateToken extends Token{
 		if (sentenceIndex < sentenceTokens.size() - 2)
 			next2Token = (FeaturedPredicateToken) sentenceTokens.get(sentenceIndex + 2);
 		else
-			next2Token = emptyToken;
+			next2Token = emptyToken;	
 	}
 	
 	/*
