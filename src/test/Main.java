@@ -3,7 +3,6 @@ package test;
 import edu.stanford.nlp.classify.Dataset;
 import edu.stanford.nlp.classify.LinearClassifier;
 import edu.stanford.nlp.classify.LinearClassifierFactory;
-import edu.stanford.nlp.ling.BasicDatum;
 import edu.stanford.nlp.ling.Datum;
 import edu.stanford.nlp.stats.ClassicCounter;
 import edu.stanford.nlp.stats.Counter;
@@ -11,19 +10,15 @@ import edu.stanford.nlp.stats.Counter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
-
 import argumentClassification.ArgumentClassifier;
 import argumentClassification.ArgumentClassifierA;
 import argumentClassification.ArgumentClassifierB;
-//import argumentClassification.ArgumentClassifier.ArgumentWithProbability;
+import argumentClassification.ArgumentClassifierC;
 import argumentClassification.ArgumentClassifierToken;
 
 import predicateClassification.PredicateClassifier;
-import util.CorpusUtils;
 
 public class Main {
 
@@ -33,7 +28,7 @@ public class Main {
 	 */
 	
 	public static void main(String[] args) throws IOException {
-		ArgumentClassifierA argumentClassifierA;
+		ArgumentClassifierC argumentClassifierC;
 		LinearClassifier<String, String> l;
 		//LinearClassifier<String, String> pl;
 		
@@ -42,16 +37,17 @@ public class Main {
 		l = new LinearClassifierFactory<String, String>().
 				trainClassifier(trainSet);
 		LinearClassifier.writeClassifier(l, "argumentclassifierB.gz");*/
-		
-		l  = LinearClassifier.readClassifier("argumentclassifierA.gz");
+		long startTime = System.currentTimeMillis();
+		System.out.println("Reading argument classifier A");
+		l  = LinearClassifier.readClassifier("Testing\\argumentclassifierA.gz");
 		//pl = LinearClassifier.readClassifier("predicateclassifierA.gz");
-		argumentClassifierA = new ArgumentClassifierA(l);
+		argumentClassifierC = new ArgumentClassifierC(l);
 		//PredicateClassifier predicateClassifier = new PredicateClassifier(pl);
-		
-		LinearClassifier<String, String> l2 = LinearClassifier.readClassifier("argumentclassifierB.gz");
+		System.out.println("Reading argument classifier B " + (System.currentTimeMillis() - startTime)/1000);
+		LinearClassifier<String, String> l2 = LinearClassifier.readClassifier("Testing\\argumentclassifierB.gz");
 		ArgumentClassifierB argumentClassifierB = new ArgumentClassifierB(l2);
-		
-		List<List<ArgumentClassifierToken>> sentences = ArgumentClassifierB.sentencesFromCorpus("devel.closed");
+		System.out.println("Reading sentences " + (System.currentTimeMillis() - startTime)/1000);
+		List<List<ArgumentClassifierToken>> sentences = ArgumentClassifierB.sentencesFromCorpus("Testing\\devel.closed");
 		
 		System.out.println();
 		
@@ -67,7 +63,7 @@ public class Main {
 			List<ArgumentClassifierToken> predicates = (List<ArgumentClassifierToken>) PredicateClassifier.goldPredicatesInSentence(sentence);
 			for (ArgumentClassifierToken predicate : predicates){
 				
-				Map<ArgumentClassifierToken, String> aArgumentLabels = argumentClassifierA.argumentsOf(predicate);
+				Map<ArgumentClassifierToken, String> aArgumentLabels = argumentClassifierC.argumentsOf(predicate);
 				Map<ArgumentClassifierToken, String> bArgumentLabels = argumentClassifierB.argumentsOf(predicate);
 				Map<ArgumentClassifierToken, String> goldArgumentLabels = ArgumentClassifier.goldArgumentsOf(predicate);
 				
@@ -85,11 +81,11 @@ public class Main {
 						bCorrect.incrementCount(goldLabel);
 					
 					/*if(aPredicted.equals(goldLabel) && !bPredicted.equals(goldLabel)){
-						System.err.println(predicate.splitForm + ' ' + argument.splitForm + ' ' + aPredicted + ' ' + bPredicted + ' ' + goldLabel);
+						System.err.println(predicate.splitForm + ' ' + argument.splitForm + ' ' + aPredictedLabel + ' ' + bPredictedLabel + ' ' + goldLabel);
 						System.err.flush();
 					}
 					else{
-						System.out.println(predicate.splitForm + ' ' + argument.splitForm + ' ' + aPredicted + ' ' + bPredicted + ' ' + goldLabel);
+						System.out.println(predicate.splitForm + ' ' + argument.splitForm + ' ' + aPredictedLabel + ' ' + bPredictedLabel + ' ' + goldLabel);
 						System.out.flush();
 					}*/
 				}
@@ -108,6 +104,7 @@ public class Main {
 					(int) bPredicted.getCount(label) + ' ' +
 					(int) goldLabels.getCount(label));
 		}
+		System.out.println("Done " + (System.currentTimeMillis() - startTime)/1000);
 		
 		/*for (String argClass : argClasses){
 			int[] stat = stats.get(argClass);

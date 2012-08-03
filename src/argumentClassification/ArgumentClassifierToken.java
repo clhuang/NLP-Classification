@@ -3,6 +3,7 @@ package argumentClassification;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 
@@ -61,7 +62,7 @@ public class ArgumentClassifierToken extends FeaturedPredicateToken{
 	}
 	
 	public Collection<Integer> getDescendantIndices(){
-		Collection<Integer> descendantIndices = new ArrayList<Integer>();
+		Collection<Integer> descendantIndices = new HashSet<Integer>();
 		for (Integer i : childrenIndices){
 			ArgumentClassifierToken child = (ArgumentClassifierToken) sentenceTokens.get(i);
 			descendantIndices.add(i);
@@ -71,7 +72,7 @@ public class ArgumentClassifierToken extends FeaturedPredicateToken{
 	}
 	
 	public Collection<Integer> getAncestorIndices(){
-		Collection<Integer> ancestorIndices = new ArrayList<Integer>();
+		Collection<Integer> ancestorIndices = new HashSet<Integer>();
 		ArgumentClassifierToken ancestor = this;
 		while (ancestor.parentIndex >= 0){
 			ancestorIndices.add(ancestor.parentIndex);
