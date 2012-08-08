@@ -13,7 +13,7 @@ import edu.stanford.nlp.ling.Datum;
 
 public class FeaturedPredicateToken extends Token{
 	
-	private List<Integer> childrenIndices = new ArrayList<Integer>();
+	protected List<Integer> childrenIndices = new ArrayList<Integer>();
 
 	private FeaturedPredicateToken prev2Token;
 	private FeaturedPredicateToken prevToken;
@@ -111,7 +111,7 @@ public class FeaturedPredicateToken extends Token{
 		features.add("numch|" +	childrenIndices.size());	//add number of children
 
 		features.addAll(getChildrenFeatures()); //add children features
-		features.add(getChildrenDifferences()); //add children differences
+		//features.add(getChildrenDifferences()); //add children differences
 		
 		return features;
 		
@@ -196,23 +196,23 @@ public class FeaturedPredicateToken extends Token{
 			for (String s : child.getSplitLemmas()){
 				childFeatures.add("c" + 
 						s);
-				childFeatures.add("c" + (sentenceIndex - child.sentenceIndex) +
-						s);
+				/*childFeatures.add("c" + (sentenceIndex - child.sentenceIndex) +
+						s);*/
 			}
 
 			//add child pposs
 			for (String s : child.getPPoss()){
 				childFeatures.add("c" + 
 						s);
-				childFeatures.add("c" + (sentenceIndex - child.sentenceIndex) +
-						s);
+				/*childFeatures.add("c" + (sentenceIndex - child.sentenceIndex) +
+						s);*/
 			}
 
 			//add child deprel
 			childFeatures.add("cdeprel|" + 
 					child.deprel);
-			childFeatures.add("cdeprel|" + (sentenceIndex - child.sentenceIndex) +
-					child.deprel);
+			/*childFeatures.add("cdeprel|" + (sentenceIndex - child.sentenceIndex) +
+					child.deprel);*/
 
 			//add <split_lemma(this), split_lemma(child)>
 			Iterator<String> parentIterator = getSplitLemmas().iterator();
@@ -223,9 +223,9 @@ public class FeaturedPredicateToken extends Token{
 				childFeatures.add("cp" + 
 						childString + "||" +
 						parentString);
-				childFeatures.add("cp" + (sentenceIndex - child.sentenceIndex) +
+				/*childFeatures.add("cp" + (sentenceIndex - child.sentenceIndex) +
 						childString + "||" +
-						parentString);
+						parentString);*/
 			}
 
 			//add <pposs(this), pposs(child)>
@@ -237,9 +237,9 @@ public class FeaturedPredicateToken extends Token{
 				childFeatures.add("cp" + 
 						childString + "||" +
 						parentString);
-				childFeatures.add("cp" + (sentenceIndex - child.sentenceIndex) +
+				/*childFeatures.add("cp" + (sentenceIndex - child.sentenceIndex) +
 						childString + "||" +
-						parentString);
+						parentString);*/
 			}
 
 		}

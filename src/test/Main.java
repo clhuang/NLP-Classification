@@ -21,90 +21,86 @@ import argumentClassification.ArgumentClassifierToken;
 import predicateClassification.PredicateClassifier;
 
 public class Main {
+	
+	public static final boolean USE_PREDICTED_PREDICATES = true;
 
 	/**
 	 * @param args
 	 * @throws IOException 
 	 */
 	
+	@SuppressWarnings("unchecked")
 	public static void main(String[] args) throws IOException {
+		
 		ArgumentClassifierC argumentClassifierC;
 		LinearClassifier<String, String> l;
-		//LinearClassifier<String, String> pl;
+		PredicateClassifier predicateClassifier;
 		
 		/*Dataset<String, String> trainSet = ArgumentClassifier.dataSetFromCorpus("train.closed");
 		trainSet.applyFeatureCountThreshold(3);
 		l = new LinearClassifierFactory<String, String>().
 				trainClassifier(trainSet);
 		LinearClassifier.writeClassifier(l, "argumentclassifierB.gz");*/
-		long startTime = System.currentTimeMillis();
-		System.out.println("Reading argument classifier A");
 		l  = LinearClassifier.readClassifier("Testing\\argumentclassifierA.gz");
-		//pl = LinearClassifier.readClassifier("predicateclassifierA.gz");
 		argumentClassifierC = new ArgumentClassifierC(l);
-		//PredicateClassifier predicateClassifier = new PredicateClassifier(pl);
-		System.out.println("Reading argument classifier B " + (System.currentTimeMillis() - startTime)/1000);
-		LinearClassifier<String, String> l2 = LinearClassifier.readClassifier("Testing\\argumentclassifierB.gz");
-		ArgumentClassifierB argumentClassifierB = new ArgumentClassifierB(l2);
-		System.out.println("Reading sentences " + (System.currentTimeMillis() - startTime)/1000);
-		List<List<ArgumentClassifierToken>> sentences = ArgumentClassifierB.sentencesFromCorpus("Testing\\devel.closed");
+		
+		if (USE_PREDICTED_PREDICATES){
+			LinearClassifier<String, String> pl;
+			pl = LinearClassifier.readClassifier("Testing\\predicateclassifierA.gz");
+			predicateClassifier = new PredicateClassifier(pl);
+		}
+		List<List<ArgumentClassifierToken>> sentences = ArgumentClassifier.sentencesFromCorpus("Testing\\devel.closed");
 		
 		System.out.println();
 		
+		int predictedPredicates = 0;
+		int correctPredicates = 0;
+		int goldPredicateCount = 0;
+		
 		Counter<String> aCorrect = new ClassicCounter<String>();
-		Counter<String> bCorrect = new ClassicCounter<String>();
 		Counter<String> aPredicted = new ClassicCounter<String>();
-		Counter<String> bPredicted = new ClassicCounter<String>();
-		Counter<String> goldLabels = new ClassicCounter<String>();
 		
 		for (List<ArgumentClassifierToken> sentence : sentences){
-		//List<ArgumentClassifierToken> sentence = sentences.get(1);{
-			@SuppressWarnings("unchecked")
-			List<ArgumentClassifierToken> predicates = (List<ArgumentClassifierToken>) PredicateClassifier.goldPredicatesInSentence(sentence);
+			List<ArgumentClassifierToken> predicates;
+			List<ArgumentClassifierToken> goldPredicates = (List<ArgumentClassifierToken>) PredicateClassifier.goldPredicatesInSentence(sentence);
+			if (USE_PREDICTED_PREDICATES)
+				predicates = (List<ArgumentClassifierToken>) predicateClassifier.predicatesInSentence(sentence);
+			else
+				predicates = goldPredicates;
+			
+			predictedPredicates += predicates.size();
+			goldPredicateCount += goldPredicates.size();
+			
 			for (ArgumentClassifierToken predicate : predicates){
 				
+				if (goldPredicates.contains(predicate))
+					correctPredicates++;
+				
 				Map<ArgumentClassifierToken, String> aArgumentLabels = argumentClassifierC.argumentsOf(predicate);
-				Map<ArgumentClassifierToken, String> bArgumentLabels = argumentClassifierB.argumentsOf(predicate);
 				Map<ArgumentClassifierToken, String> goldArgumentLabels = ArgumentClassifier.goldArgumentsOf(predicate);
 				
 				for (ArgumentClassifierToken argument : ArgumentClassifier.argumentCandidates(predicate)){
 					String aPredictedLabel = aArgumentLabels.get(argument);
-					String bPredictedLabel = bArgumentLabels.get(argument);
 					String goldLabel = goldArgumentLabels.get(argument);
 					
-					goldLabels.incrementCount(goldLabel);
 					aPredicted.incrementCount(aPredictedLabel);
-					bPredicted.incrementCount(bPredictedLabel);
 					if (aPredictedLabel.equals(goldLabel))
 						aCorrect.incrementCount(goldLabel);
-					if (bPredictedLabel.equals(goldLabel))
-						bCorrect.incrementCount(goldLabel);
-					
-					/*if(aPredicted.equals(goldLabel) && !bPredicted.equals(goldLabel)){
-						System.err.println(predicate.splitForm + ' ' + argument.splitForm + ' ' + aPredictedLabel + ' ' + bPredictedLabel + ' ' + goldLabel);
-						System.err.flush();
-					}
-					else{
-						System.out.println(predicate.splitForm + ' ' + argument.splitForm + ' ' + aPredictedLabel + ' ' + bPredictedLabel + ' ' + goldLabel);
-						System.out.flush();
-					}*/
 				}
 			}
 		}
 		
 		List<String> argClasses = new ArrayList<String>();
-		argClasses.addAll(goldLabels.keySet());
+		argClasses.addAll(aPredicted.keySet());
 		Collections.sort(argClasses);
+		
+		System.out.println(correctPredicates + " " + predictedPredicates + " " + goldPredicateCount);
 		
 		for(String label : argClasses){
 			System.out.println(label + ' ' +
 					(int) aCorrect.getCount(label) + ' ' +
-					(int) bCorrect.getCount(label) + ' ' +
-					(int) aPredicted.getCount(label) + ' ' +
-					(int) bPredicted.getCount(label) + ' ' +
-					(int) goldLabels.getCount(label));
+					(int) aPredicted.getCount(label));
 		}
-		System.out.println("Done " + (System.currentTimeMillis() - startTime)/1000);
 		
 		/*for (String argClass : argClasses){
 			int[] stat = stats.get(argClass);
@@ -147,15 +143,15 @@ public class Main {
 		PredicateClassifier predicateClassifier;
 		LinearClassifier<String, String> l;
 		
-		l  = LinearClassifier.readClassifier("predicateclassifierCREL.gz");
+		l  = LinearClassifier.readClassifier("Testing\\predicateclassifierA.gz");
 		
 		
 		
 		/*l = new LinearClassifierFactory<String, String>().
-				trainClassifier(PredicateClassifier.dataSetFromCorpus("train.closed"));
-		LinearClassifier.writeClassifier(l, "predicateclassifierCREL.gz");*/
+				trainClassifier(PredicateClassifier.dataSetFromCorpus("Testing\\train.closed"));
+		LinearClassifier.writeClassifier(l, "Testing\\predicateclassifierCREL.gz");*/
 
-		Dataset<String, String> dataset = PredicateClassifier.dataSetFromCorpus("devel.closed");
+		Dataset<String, String> dataset = PredicateClassifier.dataSetFromCorpus("Testing\\devel.closed");
 		predicateClassifier = new PredicateClassifier(l);
 		
 		int[] nounStats = new int[4];
@@ -190,9 +186,6 @@ public class Main {
 						if (s.startsWith("splmu"))
 							splitLemma.add(s);
 					}
-					//System.out.println("FALSE- " + splitLemma.get(0) + " " + splitLemma.get(1) + " " + splitLemma.get(2) + " ");
-					//System.out.println();
-					//System.out.println();
 					statPosition = FALSE_NEGATIVE;
 				}
 			}
@@ -203,9 +196,6 @@ public class Main {
 						if (s.startsWith("splmu"))
 							splitLemma.add(s);
 					}
-					//System.out.println("FALSE+ " + splitLemma.get(0) + " " + splitLemma.get(1) + " " + splitLemma.get(2) + " ");
-					//System.out.println();
-					//System.out.println();
 					statPosition = FALSE_POSITIVE;
 				}
 					

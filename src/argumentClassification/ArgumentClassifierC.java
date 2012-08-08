@@ -5,7 +5,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.Deque;
-import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -195,7 +194,6 @@ public class ArgumentClassifierC extends ArgumentClassifier{
 		
 		while (!argumentLabelProbabilities.isEmpty()){
 			Pair<ArgumentClassifierToken, String> argAndLabel = mostCertainArgLabel(argumentLabelProbabilities);
-			Collection<ArgumentClassifierToken> toRemove = new ArrayList<ArgumentClassifierToken>();
 			ArgumentClassifierToken registeredArg = argAndLabel.first();
 			String argLabel = argAndLabel.second();
 			argumentLabelProbabilities.remove(registeredArg);
@@ -220,7 +218,7 @@ public class ArgumentClassifierC extends ArgumentClassifier{
 				}
 			}
 			
-			if (!argLabel.equals("NIL"))
+			if (argLabel.matches("A[0-9]"))
 				for (ArgumentClassifierToken token : argumentLabelProbabilities.keySet()){
 					argumentLabelProbabilities.get(token).remove(argLabel);
 				}

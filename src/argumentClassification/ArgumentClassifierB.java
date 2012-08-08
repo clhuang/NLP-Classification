@@ -10,7 +10,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import util.CorpusUtils;
 import edu.stanford.nlp.classify.Dataset;
 import edu.stanford.nlp.classify.LinearClassifier;
 import edu.stanford.nlp.ling.BasicDatum;
@@ -138,79 +137,6 @@ public class ArgumentClassifierB extends ArgumentClassifier{
 		return features;
 	}
 	
-	public static List<ArgumentClassifierToken> argumentCandidates(ArgumentClassifierToken predicate){
-		List<ArgumentClassifierToken> candidates = new ArrayList<ArgumentClassifierToken>();
-		
-		for (ArgumentClassifierToken t : predicate.getSentenceTokens()){
-			
-			ArgumentClassifierToken ancestor = SentenceUtils.getCommonAncestor(t, predicate);
-			int argumentAncestorPathLength = SentenceUtils.ancestorPathLength(t, ancestor);
-			int predicateAncestorPathLength = SentenceUtils.ancestorPathLength(predicate, ancestor);
-			
-			if (argumentAncestorPathLength < 3 &&
-					predicateAncestorPathLength < 5 &&
-					argumentAncestorPathLength + predicateAncestorPathLength < 6)
-				candidates.add(t);
-			
-		}
-		
-		return candidates;
-	}
-	
-	public static List<List<ArgumentClassifierToken>> sentencesFromCorpus(String corpusLoc) throws IOException{
-		List<List<String[]>> sentenceData = CorpusUtils.sentencesFromCorpus(corpusLoc);
-		List<List<ArgumentClassifierToken>> sentences = new ArrayList<List<ArgumentClassifierToken>>();
-		List<ArgumentClassifierToken> sentenceTokens;
-		
-		for (List<String[]> sentence : sentenceData){
-			sentenceTokens = new ArrayList<ArgumentClassifierToken>();
-			List<ArgumentClassifierToken> predicates = new ArrayList<ArgumentClassifierToken>();
-			
-			for (String[] tokenData : sentence){
-				ArgumentClassifierToken token = new ArgumentClassifierToken(	//make new token, add to list
-						tokenData[CorpusUtils.SPLIT_FORM_COLUMN],	//split_form
-						tokenData[CorpusUtils.SPLIT_LEMMA_COLUMN],	//split_lemma
-						tokenData[CorpusUtils.PPOSS_COLUMN],		//pposs
-						tokenData[CorpusUtils.DEPREL_COLUMN], 		//deprel
-						tokenData[CorpusUtils.PREDICATE_COLUMN],	//predicate role
-
-						Integer.parseInt(tokenData[CorpusUtils.PARENT_INDEX_COLUMN]) - 1,	//parent index
-						Integer.parseInt(tokenData[CorpusUtils.INDEX_COLUMN]) - 1, //this index
-						//offset by 1 because array indices are 0-based, not 1-based
-
-						sentenceTokens);		//list of sentence tokens
-						
-				sentenceTokens.add(token);
-				if(token.isPredicate())
-					predicates.add(token);
-				
-			}
-
-			for (int i = 0; i < sentence.size(); i++){
-				String[] tokenData = sentence.get(i);
-				ArgumentClassifierToken token = sentenceTokens.get(i);
-				for (int j = CorpusUtils.ARGS_START_COLUMN; j < tokenData.length; j++)	//link predicate arg to predicate
-					if (!tokenData[j].equals("_")){
-						int predicateNum = j - CorpusUtils.ARGS_START_COLUMN;
-						token.addPredicate(predicates.get(predicateNum).sentenceIndex, tokenData[j]);
-					}
-			}
-			
-			
-			for (ArgumentClassifierToken t : sentenceTokens){ //link parents to children
-				if (t.parentIndex >= 0){
-					sentenceTokens.get(t.parentIndex).addChild(t.sentenceIndex);
-				}
-			}
-			
-			sentences.add(sentenceTokens);
-
-		}
-		
-		return sentences;
-		
-	}
-
 	public static Dataset<String, String> dataSetFromCorpus(String corpusLoc) throws IOException{
 		
 		Dataset<String, String> dataset = new Dataset<String, String>();
@@ -275,7 +201,6 @@ public class ArgumentClassifierB extends ArgumentClassifier{
 				if (label.equals("SU") || label.startsWith("AM-")){
 					argumentLinks.put(argument, label);
 					previousArgClass = label;
-					previousLabels.add(label);
 					continue nextArgument;
 				}
 				
@@ -284,7 +209,8 @@ public class ArgumentClassifierB extends ArgumentClassifier{
 					restrictedArgs.addAll(argument.getDescendantIndices());
 					argumentLinks.put(argument, label);
 					previousArgClass = label;
-					previousLabels.add(label);
+					if(label.matches("A[0-9]"))
+						previousLabels.add(label);
 					continue nextArgument;
 				}
 			}

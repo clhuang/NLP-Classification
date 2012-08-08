@@ -10,7 +10,6 @@ import java.util.Map;
 import predicateClassification.FeaturedPredicateToken;
 
 public class ArgumentClassifierToken extends FeaturedPredicateToken{
-	private List<Integer> childrenIndices = new ArrayList<Integer>();
 	
 	private Map<Integer, String> labels = new HashMap<Integer, String>();
 

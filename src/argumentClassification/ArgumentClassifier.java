@@ -16,6 +16,8 @@ import util.CorpusUtils;
 
 public abstract class ArgumentClassifier {
 	
+	public final boolean USE_CONSISTENCY_MODULE = true;
+	
 	protected LinearClassifier<String, String> linearClassifier;
 	
 	public ArgumentClassifier(LinearClassifier<String, String> linearClassifier){
@@ -85,6 +87,7 @@ public abstract class ArgumentClassifier {
 				if (t.parentIndex >= 0){
 					sentenceTokens.get(t.parentIndex).addChild(t.sentenceIndex);
 				}
+				t.updateAdjacentTokens();
 			}
 			
 			sentences.add(sentenceTokens);

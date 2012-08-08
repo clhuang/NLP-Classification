@@ -197,7 +197,8 @@ public class ArgumentClassifierA extends ArgumentClassifier{
 					restrictedArgs.addAll(argument.getAncestorIndices());
 					restrictedArgs.addAll(argument.getDescendantIndices());
 					argumentLinks.put(argument, label);
-					previousLabels.add(label);
+					if (label.matches("A[0-9]"))
+						previousLabels.add(label);
 					continue nextArgument;
 				}
 			}
