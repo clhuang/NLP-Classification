@@ -1,4 +1,4 @@
-package argumentClassification;
+package withLinearClassifier.argumentClassification;
 
 import java.io.IOException;
 import java.util.ArrayList;

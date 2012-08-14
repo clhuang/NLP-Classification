@@ -1,4 +1,4 @@
-package argumentClassification;
+package withPerceptronClassifier.argumentClassifier;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -9,19 +9,20 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
-import edu.stanford.nlp.classify.LinearClassifier;
+
 import edu.stanford.nlp.stats.Counter;
 
 import util.CorpusUtils;
+import withPerceptronClassifier.classify.PerceptronClassifier;
 
 public abstract class ArgumentClassifier {
 	
 	public final boolean USE_CONSISTENCY_MODULE = true;
 	
-	protected LinearClassifier<String, String> linearClassifier;
+	protected PerceptronClassifier classifier;
 	
-	public ArgumentClassifier(LinearClassifier<String, String> linearClassifier){
-		this.linearClassifier = linearClassifier;
+	public ArgumentClassifier(PerceptronClassifier classifier){
+		this.classifier = classifier;
 	}
 
 	public static List<ArgumentClassifierToken> argumentCandidates(ArgumentClassifierToken predicate){
@@ -44,7 +45,7 @@ public abstract class ArgumentClassifier {
 	}
 	
 	public static List<List<ArgumentClassifierToken>> sentencesFromCorpus(String corpusLoc) throws IOException{
-		List<List<String[]>> sentenceData = CorpusUtils.sentencesFromCorpus(corpusLoc);
+		List<List<String[]>> sentenceData = CorpusUtils.sentenceDataFromCorpus(corpusLoc);
 		List<List<ArgumentClassifierToken>> sentences = new ArrayList<List<ArgumentClassifierToken>>();
 		List<ArgumentClassifierToken> sentenceTokens;
 		
@@ -67,7 +68,7 @@ public abstract class ArgumentClassifier {
 						sentenceTokens);		//list of sentence tokens
 						
 				sentenceTokens.add(token);
-				if(token.isPredicate())
+				if(token.goldIsPredicate())
 					predicates.add(token);
 				
 			}
@@ -78,7 +79,7 @@ public abstract class ArgumentClassifier {
 				for (int j = CorpusUtils.ARGS_START_COLUMN; j < tokenData.length; j++)	//link predicate arg to predicate
 					if (!tokenData[j].equals("_")){
 						int predicateNum = j - CorpusUtils.ARGS_START_COLUMN;
-						token.addPredicate(predicates.get(predicateNum).sentenceIndex, tokenData[j]);
+						token.addGoldPredicate(predicates.get(predicateNum).sentenceIndex, tokenData[j]);
 					}
 			}
 			
@@ -117,7 +118,7 @@ public abstract class ArgumentClassifier {
 	public static Map<ArgumentClassifierToken, String> goldArgumentsOf(ArgumentClassifierToken predicate){
 		Map<ArgumentClassifierToken, String> argClasses = new LinkedHashMap<ArgumentClassifierToken, String>();
 		for (ArgumentClassifierToken argument : ArgumentClassifier.argumentCandidates(predicate)){
-			argClasses.put(argument, argument.predicateLabel(predicate));
+			argClasses.put(argument, argument.goldPredicateLabel(predicate));
 		}
 		return argClasses;
 	}

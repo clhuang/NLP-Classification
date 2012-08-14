@@ -1,4 +1,4 @@
-package argumentClassification;
+package withPerceptronClassifier.argumentClassifier;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -10,19 +10,20 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import withPerceptronClassifier.classify.PerceptronClassifier;
+
 import edu.stanford.nlp.classify.Dataset;
-import edu.stanford.nlp.classify.LinearClassifier;
 import edu.stanford.nlp.ling.BasicDatum;
 import edu.stanford.nlp.stats.Counter;
 
-public class ArgumentClassifierB extends ArgumentClassifier{
+public class ArgumentClassifierA extends ArgumentClassifier{
 
-	public ArgumentClassifierB(LinearClassifier<String, String> linearClassifier){
-		super(linearClassifier);
+	public ArgumentClassifierA(PerceptronClassifier classifier){
+		super(classifier);
 	}
 
 	public static Collection<String> getFeatures(ArgumentClassifierToken predicate,
-			ArgumentClassifierToken argument, String prevArgClass){
+			ArgumentClassifierToken argument){
 		
 		if (!argument.getSentenceTokens().equals(predicate.getSentenceTokens()))
 			return null;
@@ -84,7 +85,8 @@ public class ArgumentClassifierB extends ArgumentClassifier{
 		/*
 		 * Feature 3: dependency path
 		 */
-		StringBuilder path = new StringBuilder();
+		StringBuilder deprelPath = new StringBuilder();
+		StringBuilder posPath = new StringBuilder("pospath: ");
 		
 		/*
 		 * Ancestor splits the path into two halves: 
@@ -99,15 +101,24 @@ public class ArgumentClassifierB extends ArgumentClassifier{
 		argPath.removeLast(); //ancestor is last thing in both pathA and pathB, don't need it's deprel
 		predPath.removeLast();
 		
-		while(!argPath.isEmpty())	//argPath is (upward) path from argument to ancestor
-			path.append(argPath.removeFirst().deprel + "^ ");
-		while(!predPath.isEmpty())	//predPath is (downwards) path from predicate to ancestor
-			path.append(predPath.removeLast().deprel + "v ");
+		/*
+		 * POSPath is experimental
+		 */
 		
-		features.add("path|" + path.toString());
-		features.add("pathpos|" + argument.pposs + " " + path.toString() + predicate.pposs);	//with pposs tags
-		features.add("pathlem|" + argument.splitLemma + " " + path.toString() + predicate.splitLemma);	//with splm tagss
+		while(!argPath.isEmpty()){	//argPath is (upward) path from argument to ancestor
+			//posPath.append(argPath.peekFirst().pposs + "^ ");
+			deprelPath.append(argPath.removeFirst().deprel + "^ ");
+		}
+		while(!predPath.isEmpty()){	//predPath is (downwards) path from predicate to ancestor
+			//posPath.append(predPath.peekFirst().pposs + "v ");
+			deprelPath.append(predPath.removeLast().deprel + "v ");
+		}
+		
+		features.add("path|" + deprelPath.toString());
+		features.add("pathpos|" + argument.pposs + " " + deprelPath.toString() + predicate.pposs);	//with pposs tags
+		features.add("pathlem|" + argument.splitLemma + " " + deprelPath.toString() + predicate.splitLemma);	//with splm tagss
 
+		//features.add(posPath.toString());
 		
 		/*
 		 * Feature 4: length of dependency path
@@ -128,11 +139,11 @@ public class ArgumentClassifierB extends ArgumentClassifier{
 		 */
 		features.add("predrelpos|" + ((predicate.sentenceIndex < argument.sentenceIndex) ? "before" : "after"));
 		
-		//Feature for previous argument
-		if (prevArgClass != null)
-			features.add("previousArgClass:" + prevArgClass);
-		else
-			features.add("previousArgClass:NIL");
+		/*
+		 * Experimental features
+		 */
+		
+		
 		
 		return features;
 	}
@@ -147,20 +158,17 @@ public class ArgumentClassifierB extends ArgumentClassifier{
 			List<ArgumentClassifierToken> sentence = sentences.remove(0);
 			List<ArgumentClassifierToken> predicates = new ArrayList<ArgumentClassifierToken>();
 			for (ArgumentClassifierToken token : sentence){
-				if (token.isPredicate())
+				if (token.goldIsPredicate())
 					predicates.add(token);
 			}
 			
 			for (ArgumentClassifierToken predicate : predicates){
-				String previousArgClass = null;
 				for (ArgumentClassifierToken possibleArg : argumentCandidates(predicate))
 				{
-					String label = possibleArg.predicateLabel(predicate);
+					String label = possibleArg.goldPredicateLabel(predicate);
 					dataset.add(new BasicDatum<String, String>(
-							getFeatures(predicate, possibleArg, previousArgClass),
+							getFeatures(predicate, possibleArg),
 							label));
-					if (!label.equals("NIL"))
-						previousArgClass = label;
 				}
 			}
 			
@@ -169,27 +177,26 @@ public class ArgumentClassifierB extends ArgumentClassifier{
 		return dataset;
 	}
 	
-	public String argClass(ArgumentClassifierToken argument, ArgumentClassifierToken predicate, String previousArgClass){
-		return linearClassifier.classOf(new BasicDatum<String, String>(getFeatures(predicate, argument, previousArgClass)));
+	public String argClass(ArgumentClassifierToken argument, ArgumentClassifierToken predicate){
+		return classifier.classOf(new BasicDatum<String, String>(getFeatures(predicate, argument)));
 	}
 	
-	public Counter<String> argClassProbabilities(ArgumentClassifierToken argument, ArgumentClassifierToken predicate, String previousArgClass){
-		return linearClassifier.probabilityOf(new BasicDatum<String, String>(getFeatures(predicate, argument, previousArgClass)));
+	public Counter<String> argClassScores(ArgumentClassifierToken argument, ArgumentClassifierToken predicate){
+		return classifier.scoresOf(new BasicDatum<String, String>(getFeatures(predicate, argument)));
 	}
 	
 	public Map<ArgumentClassifierToken, String> argumentsOf(ArgumentClassifierToken predicate){
-		String previousArgClass = null;
 		
 		Map<ArgumentClassifierToken, String> argumentLinks = new LinkedHashMap<ArgumentClassifierToken, String>();
 		Set<String> previousLabels = new HashSet<String>();
 		Set<Integer> restrictedArgs = new HashSet<Integer>();
 		
 		nextArgument:
-		for (ArgumentClassifierToken argument : argumentCandidates(predicate)){	
+		for (ArgumentClassifierToken argument : argumentCandidates(predicate)){
 			
-			Counter<String> argClassProbabilities = argClassProbabilities(argument, predicate, previousArgClass);
+			Counter<String> argClassScores = argClassScores(argument, predicate);
 			
-			for (String label : sortArgLabels(argClassProbabilities)){
+			for (String label : sortArgLabels(argClassScores)){
 				if (label.equals("NIL")){
 					argumentLinks.put(argument, label);
 					continue nextArgument;
@@ -200,16 +207,14 @@ public class ArgumentClassifierB extends ArgumentClassifier{
 				
 				if (label.equals("SU") || label.startsWith("AM-")){
 					argumentLinks.put(argument, label);
-					previousArgClass = label;
+					previousLabels.add(label);
 					continue nextArgument;
 				}
-				
 				if (!restrictedArgs.contains(argument.sentenceIndex)){
 					restrictedArgs.addAll(argument.getAncestorIndices());
 					restrictedArgs.addAll(argument.getDescendantIndices());
 					argumentLinks.put(argument, label);
-					previousArgClass = label;
-					if(label.matches("A[0-9]"))
+					if (label.matches("A[0-9]"))
 						previousLabels.add(label);
 					continue nextArgument;
 				}
@@ -218,5 +223,5 @@ public class ArgumentClassifierB extends ArgumentClassifier{
 		}
 		return argumentLinks;
 	}
-
+	
 }

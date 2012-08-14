@@ -1,4 +1,4 @@
-package predicateClassification;
+package withLinearClassifier.predicateClassification;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
@@ -12,6 +12,9 @@ import edu.stanford.nlp.ling.BasicDatum;
 import edu.stanford.nlp.ling.Datum;
 
 public class FeaturedPredicateToken extends Token{
+	
+	private final boolean CHILD_INDICES_IN_FEATURES = false;
+	private final boolean CHILDREN_INDICES_FEATURE = false;
 	
 	protected List<Integer> childrenIndices = new ArrayList<Integer>();
 
@@ -66,7 +69,7 @@ public class FeaturedPredicateToken extends Token{
 	 * Otherwise, returns true.
 	 */
 	public boolean isPredicate(){
-		return !predicateRole.equals("_");
+		return !goldPredicateRole.equals("_");
 	}
 	
 	/*
@@ -111,7 +114,9 @@ public class FeaturedPredicateToken extends Token{
 		features.add("numch|" +	childrenIndices.size());	//add number of children
 
 		features.addAll(getChildrenFeatures()); //add children features
-		//features.add(getChildrenDifferences()); //add children differences
+		
+		if(CHILDREN_INDICES_FEATURE)
+			features.add(getChildrenDifferences()); //add children differences
 		
 		return features;
 		
@@ -196,23 +201,26 @@ public class FeaturedPredicateToken extends Token{
 			for (String s : child.getSplitLemmas()){
 				childFeatures.add("c" + 
 						s);
-				/*childFeatures.add("c" + (sentenceIndex - child.sentenceIndex) +
-						s);*/
+				if(CHILD_INDICES_IN_FEATURES)
+					childFeatures.add("c" + (sentenceIndex - child.sentenceIndex) +
+							s);
 			}
 
 			//add child pposs
 			for (String s : child.getPPoss()){
 				childFeatures.add("c" + 
 						s);
-				/*childFeatures.add("c" + (sentenceIndex - child.sentenceIndex) +
-						s);*/
+				if(CHILD_INDICES_IN_FEATURES)
+					childFeatures.add("c" + (sentenceIndex - child.sentenceIndex) +
+							s);
 			}
 
 			//add child deprel
 			childFeatures.add("cdeprel|" + 
 					child.deprel);
-			/*childFeatures.add("cdeprel|" + (sentenceIndex - child.sentenceIndex) +
-					child.deprel);*/
+			if(CHILD_INDICES_IN_FEATURES)
+				childFeatures.add("cdeprel|" + (sentenceIndex - child.sentenceIndex) +
+						child.deprel);
 
 			//add <split_lemma(this), split_lemma(child)>
 			Iterator<String> parentIterator = getSplitLemmas().iterator();
@@ -223,9 +231,10 @@ public class FeaturedPredicateToken extends Token{
 				childFeatures.add("cp" + 
 						childString + "||" +
 						parentString);
-				/*childFeatures.add("cp" + (sentenceIndex - child.sentenceIndex) +
-						childString + "||" +
-						parentString);*/
+				if(CHILD_INDICES_IN_FEATURES)
+					childFeatures.add("cp" + (sentenceIndex - child.sentenceIndex) +
+							childString + "||" +
+							parentString);
 			}
 
 			//add <pposs(this), pposs(child)>
@@ -237,9 +246,10 @@ public class FeaturedPredicateToken extends Token{
 				childFeatures.add("cp" + 
 						childString + "||" +
 						parentString);
-				/*childFeatures.add("cp" + (sentenceIndex - child.sentenceIndex) +
-						childString + "||" +
-						parentString);*/
+				if(CHILD_INDICES_IN_FEATURES)
+					childFeatures.add("cp" + (sentenceIndex - child.sentenceIndex) +
+							childString + "||" +
+							parentString);
 			}
 
 		}

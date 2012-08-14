@@ -1,4 +1,4 @@
-package test;
+package withLinearClassifier;
 
 import edu.stanford.nlp.classify.Dataset;
 import edu.stanford.nlp.classify.LinearClassifier;
@@ -12,13 +12,13 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import argumentClassification.ArgumentClassifier;
-import argumentClassification.ArgumentClassifierA;
-import argumentClassification.ArgumentClassifierB;
-import argumentClassification.ArgumentClassifierC;
-import argumentClassification.ArgumentClassifierToken;
 
-import predicateClassification.PredicateClassifier;
+import withLinearClassifier.argumentClassification.ArgumentClassifier;
+import withLinearClassifier.argumentClassification.ArgumentClassifierA;
+import withLinearClassifier.argumentClassification.ArgumentClassifierB;
+import withLinearClassifier.argumentClassification.ArgumentClassifierC;
+import withLinearClassifier.argumentClassification.ArgumentClassifierToken;
+import withLinearClassifier.predicateClassification.PredicateClassifier;
 
 public class Main {
 	
@@ -36,7 +36,7 @@ public class Main {
 		LinearClassifier<String, String> l;
 		PredicateClassifier predicateClassifier;
 		
-		/*Dataset<String, String> trainSet = ArgumentClassifier.dataSetFromCorpus("train.closed");
+		/*Dataset<String, String> trainSet = ArgumentClassifier.dataSetFromCorpus("Testing\\train.closed");
 		trainSet.applyFeatureCountThreshold(3);
 		l = new LinearClassifierFactory<String, String>().
 				trainClassifier(trainSet);
@@ -97,8 +97,8 @@ public class Main {
 		System.out.println(correctPredicates + " " + predictedPredicates + " " + goldPredicateCount);
 		
 		for(String label : argClasses){
-			System.out.println(label + ' ' +
-					(int) aCorrect.getCount(label) + ' ' +
+			System.out.println(label + '\t' +
+					(int) aCorrect.getCount(label) + '\t' +
 					(int) aPredicted.getCount(label));
 		}
 		

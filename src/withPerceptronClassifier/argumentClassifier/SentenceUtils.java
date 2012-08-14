@@ -1,4 +1,4 @@
-package argumentClassification;
+package withPerceptronClassifier.argumentClassifier;
 
 import java.util.ArrayDeque;
 import java.util.Deque;

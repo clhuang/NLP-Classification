@@ -9,7 +9,7 @@ public class Token {
 	public final String splitLemma;
 	public final String pposs;
 	public final String deprel;
-	public final String predicateRole;
+	public final String goldPredicateRole;
 	
 	public final int parentIndex;
 	public final int sentenceIndex;
@@ -17,7 +17,7 @@ public class Token {
 	protected List<? extends Token> sentenceTokens;
 	
 	public Token(String splitForm, String splitLemma,
-			String pposs, String deprel, String predicateRole,
+			String pposs, String deprel, String goldPredicateRole,
 			int parentIndex, int sentenceIndex, List<? extends Token> sentenceTokens){
 		
 		this.splitForm = splitForm;
@@ -25,7 +25,7 @@ public class Token {
 		this.pposs = pposs;
 		this.deprel = deprel;
 		this.parentIndex = parentIndex;
-		this.predicateRole = predicateRole;
+		this.goldPredicateRole = goldPredicateRole;
 		this.sentenceIndex = sentenceIndex;
 		this.sentenceTokens = sentenceTokens;
 		

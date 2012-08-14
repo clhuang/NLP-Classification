@@ -1,4 +1,4 @@
-package argumentClassification;
+package withPerceptronClassifier.argumentClassifier;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -7,26 +7,17 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 
-import predicateClassification.FeaturedPredicateToken;
+import withPerceptronClassifier.predicateClassifier.FeaturedPredicateToken;
 
 public class ArgumentClassifierToken extends FeaturedPredicateToken{
 	
-	private Map<Integer, String> labels = new HashMap<Integer, String>();
+	private Map<Integer, String> goldLabels = new HashMap<Integer, String>();
 
 	public ArgumentClassifierToken(String splitForm, String splitLemma,
 			String pposs, String deprel, String predicateRole, int parentIndex,
 			int sentenceIndex, List<ArgumentClassifierToken> sentenceTokens) {
 		super(splitForm, splitLemma, pposs, deprel, predicateRole, parentIndex,
 				sentenceIndex, sentenceTokens);
-	}
-	
-	public void addChild(int childIndex) {
-		if (childIndex >= 0)
-			childrenIndices.add(childIndex);
-	}
-	
-	public boolean isPredicate() {
-		return !(predicateRole.equals("_"));
 	}
 
 	public ArgumentClassifierToken getPMOD() {
@@ -36,12 +27,12 @@ public class ArgumentClassifierToken extends FeaturedPredicateToken{
 		return null;
 	}
 	
-	public void addPredicate(int predicateIndex, String label){
-		labels.put(predicateIndex, label);
+	public void addGoldPredicate(int predicateIndex, String label){
+		goldLabels.put(predicateIndex, label);
 	}
 	
-	public String predicateLabel(ArgumentClassifierToken predicate){
-		String label = labels.get(predicate.sentenceIndex);
+	public String goldPredicateLabel(ArgumentClassifierToken predicate){
+		String label = goldLabels.get(predicate.sentenceIndex);
 		if (label == null)
 			return "NIL";
 		return label;
@@ -58,6 +49,33 @@ public class ArgumentClassifierToken extends FeaturedPredicateToken{
 			children.add((ArgumentClassifierToken) sentenceTokens.get(index));
 		
 		return children;
+	}
+	
+	public List<ArgumentClassifierToken> getSiblings(){
+		if (parentIndex >= 0){
+			return ((ArgumentClassifierToken) getParent()).getChildren();
+		}
+		List<ArgumentClassifierToken> onlyChild = new ArrayList<ArgumentClassifierToken>();
+		onlyChild.add(this);
+		return onlyChild;
+	}
+	
+	public ArgumentClassifierToken leftSibling(){
+		List<ArgumentClassifierToken> siblings = getSiblings();
+		int index = siblings.indexOf(this);
+		if(index > 0){
+			return siblings.get(index - 1);
+		}
+		return null;
+	}
+	
+	public ArgumentClassifierToken rightSibling(){
+		List<ArgumentClassifierToken> siblings = getSiblings();
+		int index = siblings.indexOf(this);
+		if(index < siblings.size() - 1 && index >= 0){
+			return siblings.get(index + 1);
+		}
+		return null;
 	}
 	
 	public Collection<Integer> getDescendantIndices(){

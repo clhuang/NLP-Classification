@@ -1,4 +1,4 @@
-package predicateClassification;
+package withLinearClassifier.predicateClassification;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -41,7 +41,7 @@ public class PredicateClassifier {
 	public static Dataset<String, String> dataSetFromCorpus(String corpusLoc)
 			throws NumberFormatException, IOException{
 
-		List<List<String[]>> sentences = CorpusUtils.sentencesFromCorpus(corpusLoc);
+		List<List<String[]>> sentences = CorpusUtils.sentenceDataFromCorpus(corpusLoc);
 		Dataset<String, String> dataset = new Dataset<String, String>();
 		List<FeaturedPredicateToken> sentenceTokens = new ArrayList<FeaturedPredicateToken>();
 

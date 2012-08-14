@@ -19,7 +19,7 @@ public class CorpusUtils {
 	public static int ARGS_START_COLUMN = 11;
 	
 	@SuppressWarnings("unchecked")
-	public static List<List<String[]>> sentencesFromCorpus(String corpusLoc) throws IOException{
+	public static List<List<String[]>> sentenceDataFromCorpus(String corpusLoc) throws IOException{
 		List<List<String[]>> sentences = new ArrayList<List<String[]>>(); 
 		
 		String strLine;
