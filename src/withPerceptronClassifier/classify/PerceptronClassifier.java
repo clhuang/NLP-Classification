@@ -26,14 +26,19 @@ public class PerceptronClassifier implements Serializable{
 	static class LabelWeights implements Serializable{
 
 		private static final long serialVersionUID = 1L;
-		double[] weights;
-		int survivalIterations;
-		double[] avgWeights;
+		
+		//TODO
+		public double[] weights;
+		public double[] avgWeights;
+		
+		public transient int currentIteration;
+        public transient int[] lastUpdateIteration;
 
 		LabelWeights(int numFeatures) {
 			weights = new double[numFeatures];
 			avgWeights = new double[numFeatures];
-			survivalIterations = 0;
+			lastUpdateIteration = new int[numFeatures];
+			currentIteration = 1;
 		}
 
 		void clear() {
@@ -41,36 +46,39 @@ public class PerceptronClassifier implements Serializable{
 		}
 
 		void incrementSurvivalIterations() {
-			survivalIterations++;
+			currentIteration++;
 		}
 
-		private void updateAverage() {
-			for(int i = 0; i < weights.length; i++){
-				avgWeights[i] += weights[i] * survivalIterations;
+		void updateAllAverage() {
+			for(int i = 0; i < weights.length; i++) {
+				updateAverageForIndex(i);
 			}
+		}
+		
+		void updateAverageForIndex(int i) {
+            if (lastUpdateIteration[i] != 0)
+                avgWeights[i] += weights[i] * (currentIteration - lastUpdateIteration[i]);
+            lastUpdateIteration[i] = currentIteration;
+        }
+		
+		void updateAverage(Set<Integer> exampleFeatureIndices) {
+			for (int i : exampleFeatureIndices)
+				updateAverageForIndex(i);
 		}
 
 		void update(Set<Integer> exampleFeatureIndices, double weight) {
-			updateAverage();
+			updateAverage(exampleFeatureIndices);
 
 			for(int d : exampleFeatureIndices){
 				weights[d] += weight;
 			}
-
-			survivalIterations = 0;
-		}
-		
-		void normalize(double norm) {
-			if(norm > 0)
-				for(int i = 0; i < avgWeights.length; i++)
-					avgWeights[i] /= norm;
 		}
 		
 		double dotProduct(Set<Integer> featureIndices) {
 			return dotProduct(featureIndices, weights);
 		}
 		
-		static double dotProduct(Set<Integer> featureCounts, double [] weights) {
+		double dotProduct(Set<Integer> featureCounts, double [] weights) {
 			double dotProd = 0;
 			for (int i : featureCounts)
 				dotProd += weights[i];
@@ -117,9 +125,8 @@ public class PerceptronClassifier implements Serializable{
 	public void load(ObjectInputStream in) throws IOException, ClassNotFoundException {
 		int length = in.readInt();
 		zWeights = new LabelWeights[length];
-		for(int i = 0; i < zWeights.length; i ++){
+		for(int i = 0; i < zWeights.length; i ++)
 			zWeights[i] = ErasureUtils.uncheckedCast(in.readObject());
-		}
 
 		labelIndex = ErasureUtils.uncheckedCast(in.readObject());
 		featureIndex = ErasureUtils.uncheckedCast(in.readObject());
@@ -145,7 +152,7 @@ public class PerceptronClassifier implements Serializable{
 		for(int i = 0; i < zWeights.length; i++)
 			zWeights[i] = new LabelWeights(numFeatures);
 		
-		System.err.println("Running perceptronClassifier on " + dataset.size() + " features");
+		System.err.println("Running perceptronClassifier on " + dataset.size() + " datum with " + dataset.numFeatureTypes() + " features");
 		long startTime = System.currentTimeMillis();
 		
 		for(int t = 0; t < epochs; t++){
@@ -163,41 +170,31 @@ public class PerceptronClassifier implements Serializable{
 				
 				Set<Integer> exampleFeatureIndices = featuresOf(datum);
 				
-				String predictedArg = argMaxDotProduct(exampleFeatureIndices);
-				String goldArg = datum.label();
-				if (!predictedArg.equals(goldArg)){
-					zWeights[labelIndex.indexOf(predictedArg)].update(exampleFeatureIndices, -1.0);
-					zWeights[labelIndex.indexOf(goldArg)].update(exampleFeatureIndices, 1.0);
+				String predictedLabel = argMaxDotProduct(exampleFeatureIndices);
+				String goldLabel = datum.label();
+				
+				if (!predictedLabel.equals(goldLabel)){
+					zWeights[labelIndex.indexOf(predictedLabel)].update(exampleFeatureIndices, -1.0);
+					zWeights[labelIndex.indexOf(goldLabel)].update(exampleFeatureIndices, 1.0);
 				}
 				
-				for(LabelWeights zw : zWeights) {
+				for(LabelWeights zw : zWeights)
 					zw.incrementSurvivalIterations();
-				}
 			}
-			
-			int correct = 0;
-			int encountered = 0;
-			
-			for(int i = 0; i < dataset.size(); i++){
-				Datum<String, String> datum = dataset.getDatum(i);
-				
-				String predictedArg = trainingClassOf(datum);
-				String goldArg = datum.label();
-				if (predictedArg.equals(goldArg))
-					correct++;
-				encountered++;
-			}
-			System.out.println("Number correct: " + correct + "/" + encountered);
 		}
+		
+		for(LabelWeights zw : zWeights)
+			zw.updateAllAverage();
 	}
 	
 	private Set<Integer> featuresOf(Datum<String, String> datum){
 		Set<Integer> featureIndices = new HashSet<Integer>();
 		for(String feature : datum.asFeatures()){
 			int index = featureIndex.indexOf(feature);
-			if (index > 0)
+			if (index >= 0)
 				featureIndices.add(index);
 		}
+		
 		return featureIndices;
 	}
 	
@@ -211,6 +208,7 @@ public class PerceptronClassifier implements Serializable{
 				argMax = i;
 			}
 		}
+		
 		return labelIndex.get(argMax);
 	}
 	
@@ -218,7 +216,7 @@ public class PerceptronClassifier implements Serializable{
 		double maxDotProduct = Double.NEGATIVE_INFINITY;
 		int argMax = -1;
 		for(int i = 0; i < zWeights.length; i++){
-			double dotProduct = LabelWeights.dotProduct(exampleFeatureIndices, zWeights[i].avgWeights);
+			double dotProduct = zWeights[0].dotProduct(exampleFeatureIndices, zWeights[i].avgWeights);
 			if (dotProduct > maxDotProduct){
 				maxDotProduct = dotProduct;
 				argMax = i;
@@ -232,7 +230,7 @@ public class PerceptronClassifier implements Serializable{
 		Set<Integer> featureCounts = featuresOf(datum);
 		for (int i = 0; i < labelIndex.size(); i++){
 			scores.incrementCount(labelIndex.get(i),
-					LabelWeights.dotProduct(featureCounts, zWeights[i].avgWeights));
+					zWeights[0].dotProduct(featureCounts, zWeights[i].avgWeights));
 		}
 		return scores;
 	}

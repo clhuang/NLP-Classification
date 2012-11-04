@@ -25,37 +25,51 @@ public class Main {
 	 * @throws IOException 
 	 * @throws ClassNotFoundException 
 	 */
-	public static final boolean USE_PREDICTED_PREDICATES = false;
+	public static final boolean USE_PREDICTED_PREDICATES = true;
 	@SuppressWarnings("unchecked")
 	public static void main(String[] args) throws IOException, ClassNotFoundException {
-		/*PerceptronClassifier classifier = new PerceptronClassifier();
-		Dataset<String, String> trainSet = ArgumentClassifierA.dataSetFromCorpus("Testing\\train.closed");
-		trainSet.applyFeatureCountThreshold(3);
 		
-		classifier.train(trainSet);
-		classifier.save("PerceptronTesting\\argumentClassifierA'.gz");*/
 		
+		int i = 0;
+		List<List<FeaturedPredicateToken>> list = PredicateClassifier.sentencesFromCorpus("Testing\\devel.closed");
+		for (List<FeaturedPredicateToken> listCeption : list)
+			for (FeaturedPredicateToken t : listCeption)
+				if (t.goldIsPredicate())
+					i++;
+		System.out.println(i);
+		
+		
+		
+		
+		PerceptronClassifier classifier = new PerceptronClassifier();
+		//Dataset<String, String> trainSet = ArgumentClassifierA.dataSetFromCorpus("Testing\\minitest.closed");
+		//Dataset<String, String> trainSet = ArgumentClassifierA.dataSetFromCorpus("Testing\\train.closed");
+		//trainSet.applyFeatureCountThreshold(3);
+		
+		//classifier.train(trainSet);
+		//classifier.save("PerceptronTesting\\argumentClassifierA.gz");
+		
+		List<List<ArgumentClassifierToken>> sentences = ArgumentClassifier.sentencesFromCorpus("Testing\\devel.closed");		
 		PredicateClassifier predicateClassifier;
-		PerceptronClassifier classifier = PerceptronClassifier.load("PerceptronTesting\\argumentClassifierA.gz");
+		
+		classifier = PerceptronClassifier.load("PerceptronTesting\\argumentClassifierA.gz");
 		ArgumentClassifierC argumentClassifier = new ArgumentClassifierC(classifier);
 		
-		List<List<ArgumentClassifierToken>> sentences = ArgumentClassifier.sentencesFromCorpus("Testing\\devel.closed");
 		
 		Counter<String> aPredicted = new ClassicCounter<String>();
 		Counter<String> aCorrect = new ClassicCounter<String>();
 		Counter<String> goldLabels = new ClassicCounter<String>();
-		if (USE_PREDICTED_PREDICATES){
-			predicateClassifier = new PredicateClassifier(PerceptronClassifier.load("PerceptronTesting\\predicateClassifierA.gz"));
-		}
+		
+		if (USE_PREDICTED_PREDICATES)
+			predicateClassifier = new PredicateClassifier(PerceptronClassifier.load("PerceptronTesting\\predicateClassifierA'.gz"));
 		
 		for (List<ArgumentClassifierToken> sentence : sentences){
 			
 			List<ArgumentClassifierToken> predicates;
 			List<ArgumentClassifierToken> goldPredicates = (List<ArgumentClassifierToken>) PredicateClassifier.goldPredicatesInSentence(sentence);
 			
-			if (USE_PREDICTED_PREDICATES){
+			if (USE_PREDICTED_PREDICATES)
 				predicates = (List<ArgumentClassifierToken>) predicateClassifier.predicatesInSentence(sentence);
-			}
 			else
 				predicates = goldPredicates;
 			
@@ -75,6 +89,7 @@ public class Main {
 				}
 			}
 		}
+		
 		List<String> argClasses = new ArrayList<String>();
 		argClasses.addAll(goldLabels.keySet());
 		Collections.sort(argClasses);

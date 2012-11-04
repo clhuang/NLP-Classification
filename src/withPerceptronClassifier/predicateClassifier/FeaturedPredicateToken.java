@@ -1,15 +1,10 @@
 package withPerceptronClassifier.predicateClassifier;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
-
-import util.Token;
-
-import edu.stanford.nlp.process.WordShapeClassifier;
 import edu.stanford.nlp.ling.BasicDatum;
 import edu.stanford.nlp.ling.Datum;
+import edu.stanford.nlp.process.WordShapeClassifier;
+import util.Token;
+
+import java.util.*;
 
 public class FeaturedPredicateToken extends Token{
 	
@@ -109,11 +104,11 @@ public class FeaturedPredicateToken extends Token{
 		features.addAll(getSplitForms());		//add split-form
 		features.addAll(getPPoss());			//add pposs
 
-		features.addAll(getWordShapes());		//add word shape using Stanford's WordShapeClassifier
+		//features.addAll(getWordShapes());		//add word shape using Stanford's WordShapeClassifier
 
-		features.add("numch|" +	childrenIndices.size());	//add number of children
+		//features.add("numch|" +	childrenIndices.size());	//add number of children
 
-		features.addAll(getChildrenFeatures()); //add children features
+		//features.addAll(getChildrenFeatures()); //add children features
 		
 		if(CHILDREN_INDICES_FEATURE)
 			features.add(getChildrenDifferences()); //add children differences
@@ -131,23 +126,23 @@ public class FeaturedPredicateToken extends Token{
 		Collection<String> wordShapes = new ArrayList<String>();
 		
 		//word shape unigrams
-		wordShapes.add("wdshpu,i-1|" + prevToken.wordShape);
-		wordShapes.add("wdshpu,i|" + wordShape);
-		wordShapes.add("wdshpu,i+1|" + nextToken.wordShape);
+		wordShapes.add("w-1|" + prevToken.wordShape);
+		wordShapes.add("w0|" + wordShape);
+		wordShapes.add("w1|" + nextToken.wordShape);
 		
 		//word shape bigrams
-		wordShapes.add("wdshpb,i-1,i|" +
+		wordShapes.add("w-10|" +
 				prevToken.wordShape + " " + wordShape);
-		wordShapes.add("wdshpb,i,i+1|" +
+		wordShapes.add("w01|" +
 				wordShape + " " + nextToken.wordShape);
 		
 		//word shape trigrams
-		wordShapes.add("wdshpt,i-2,i-1,i|" + 
+		wordShapes.add("w-210|" + 
 				prev2Token.wordShape + " " +
 				prevToken.wordShape + " " +
 				wordShape);
 		
-		wordShapes.add("wdshpt,i,i+1,i+2|" + 
+		wordShapes.add("w012|" + 
 				wordShape + " " +
 				nextToken.wordShape + " " +
 				next2Token.wordShape);
@@ -216,10 +211,10 @@ public class FeaturedPredicateToken extends Token{
 			}
 
 			//add child deprel
-			childFeatures.add("cdeprel|" + 
+			childFeatures.add("crel|" + 
 					child.deprel);
 			if(CHILD_INDICES_IN_FEATURES)
-				childFeatures.add("cdeprel|" + (sentenceIndex - child.sentenceIndex) +
+				childFeatures.add("crel|" + (sentenceIndex - child.sentenceIndex) +
 						child.deprel);
 
 			//add <split_lemma(this), split_lemma(child)>
@@ -266,18 +261,18 @@ public class FeaturedPredicateToken extends Token{
 		List<String> ppossList = new LinkedList<String>();
 
 		//pposs unigrams
-		ppossList.add("pposu,i-1|"	+ prevToken.pposs);
-		ppossList.add("pposu,i|" + pposs);
-		ppossList.add("pposu,i+1|"	+ nextToken.pposs);
+		ppossList.add("p-1|"	+ prevToken.pposs);
+		ppossList.add("p0|" + pposs);
+		ppossList.add("p1|"	+ nextToken.pposs);
 
 		//pposs bigrams
-		ppossList.add("pposb,i-2,i-1|" +	//<i-2, i-1>
+		ppossList.add("p-21|" +	//<i-2, i-1>
 				prev2Token.pposs + " " + prevToken.pposs);
-		ppossList.add("pposb,i-1,i|" +		//<i-1, i>
+		ppossList.add("p-10|" +		//<i-1, i>
 				prevToken.pposs + " " + pposs);
-		ppossList.add("pposb,i,i+1|" +		//<i, i+1>
+		ppossList.add("p01|" +		//<i, i+1>
 				pposs + " " + nextToken.pposs);
-		ppossList.add("pposb,i+1,i+2|" +	//<i, i+1>
+		ppossList.add("p12|" +	//<i, i+1>
 				nextToken.pposs + " " + next2Token.pposs);
 		
 		return ppossList;
@@ -296,11 +291,11 @@ public class FeaturedPredicateToken extends Token{
 		List<String> splitForms = new LinkedList<String>();
 
 		//split-form unigrams
-		splitForms.add("spfm,i-2|" +	 prev2Token.splitForm);
-		splitForms.add("spfm,i-1|" + prevToken.splitForm);
-		splitForms.add("spfm,i|" + splitForm);
-		splitForms.add("spfm,i+1|" + nextToken.splitForm);
-		splitForms.add("spfm,i+2|" + next2Token.splitForm);
+		splitForms.add("f-2|" +	 prev2Token.splitForm);
+		splitForms.add("f-1|" + prevToken.splitForm);
+		splitForms.add("f0|" + splitForm);
+		splitForms.add("f1|" + nextToken.splitForm);
+		splitForms.add("f2|" + next2Token.splitForm);
 
 		return splitForms;
 
@@ -322,15 +317,15 @@ public class FeaturedPredicateToken extends Token{
 		List<String> splitLemmas = new LinkedList<String>();
 
 		//split-lemma unigrams
-		splitLemmas.add("splmu,i-1|" + prevToken.splitLemma);
-		splitLemmas.add("splmu,i|" + splitLemma);
-		splitLemmas.add("splmu,i+1|" + nextToken.splitLemma);
+		splitLemmas.add("l-1|" + prevToken.splitLemma);
+		splitLemmas.add("l0|" + splitLemma);
+		splitLemmas.add("l1|" + nextToken.splitLemma);
 
 
 		//split-lemma bigrams
-		splitLemmas.add("splmb,i-1,i|" +		//<i-1, i>
+		splitLemmas.add("l-10|" +		//<i-1, i>
 				prevToken.splitLemma + " " + splitLemma);
-		splitLemmas.add("splmb,i,i+1|" +		//<i, i+1>
+		splitLemmas.add("l01|" +		//<i, i+1>
 				splitLemma + " " + nextToken.splitLemma);
 
 		return splitLemmas;

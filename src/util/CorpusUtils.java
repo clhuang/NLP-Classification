@@ -7,18 +7,19 @@ import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.List;
 
+import edu.stanford.nlp.util.ErasureUtils;
+
 public class CorpusUtils {
 	
-	public static int INDEX_COLUMN = 0;
-	public static int SPLIT_FORM_COLUMN = 5;
-	public static int SPLIT_LEMMA_COLUMN = 6;
-	public static int PPOSS_COLUMN = 7;
-	public static int PARENT_INDEX_COLUMN = 8;
-	public static int DEPREL_COLUMN = 9;
-	public static int PREDICATE_COLUMN = 10;
-	public static int ARGS_START_COLUMN = 11;
+	public static final int INDEX_COLUMN = 0;
+	public static final int SPLIT_FORM_COLUMN = 5;
+	public static final int SPLIT_LEMMA_COLUMN = 6;
+	public static final int PPOSS_COLUMN = 7;
+	public static final int PARENT_INDEX_COLUMN = 8;
+	public static final int DEPREL_COLUMN = 9;
+	public static final int PREDICATE_COLUMN = 10;
+	public static final int ARGS_START_COLUMN = 11;
 	
-	@SuppressWarnings("unchecked")
 	public static List<List<String[]>> sentenceDataFromCorpus(String corpusLoc) throws IOException{
 		List<List<String[]>> sentences = new ArrayList<List<String[]>>(); 
 		
@@ -30,7 +31,8 @@ public class CorpusUtils {
 		
 		while ((strLine = br.readLine()) != null) {
 			if (strLine.equals("")){	//sentence is over, enter sentence data into dataset
-				sentences.add((List<String[]>) sentenceTokens.clone());
+				List<String[]> sentenceTokensClone = ErasureUtils.uncheckedCast(sentenceTokens.clone());
+				sentences.add(sentenceTokensClone);
 				sentenceTokens.clear();
 			}
 
